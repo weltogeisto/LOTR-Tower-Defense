@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mini Maul Defense – Factions Edition</title>
-  <meta name="description" content="A mini tower defense game with selectable factions.">
+  <title>Mini Maul Defense – Maze Edition</title>
+  <meta name="description" content="A mini tower defense game with dynamic maze pathfinding.">
   <style>
     :root {
       --bg-color: #f0f4f8;
@@ -13,14 +13,10 @@
       --tower: #ffb703;
       --enemy: #e63946;
       --bullet: #2a9d8f;
+      --spawn: #8ecae6;
+      --goal: #219ebc;
     }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: Arial, sans-serif;
       background-color: var(--bg-color);
@@ -30,26 +26,16 @@
       min-height: 100vh;
       align-items: center;
     }
-
-    header {
-      padding: 1rem;
-      text-align: center;
-    }
-
-    h1 {
-      font-size: 1.8rem;
-      margin-bottom: 0.5rem;
-    }
-
+    header { padding: 1rem; text-align: center; }
+    h1 { font-size: 1.6rem; margin-bottom: 0.5rem; }
     main {
       width: 100%;
-      max-width: 600px;
+      max-width: 640px;
       padding: 0 1rem 2rem;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
-
     #hud {
       display: flex;
       justify-content: space-between;
@@ -57,20 +43,27 @@
       margin-bottom: 0.5rem;
       font-size: 1rem;
     }
-
+    #faction-select {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    #faction-select label { font-weight: bold; }
+    #faction { padding: 0.3rem 0.5rem; font-size: 1rem; }
     #game-container {
       width: 100%;
       border: 2px solid var(--accent);
       background-color: #fff;
       position: relative;
     }
-
     #game-canvas {
       width: 100%;
       display: block;
       background-color: #fff;
     }
-
     #controls {
       margin-top: 0.5rem;
       display: flex;
@@ -79,7 +72,6 @@
       gap: 0.5rem;
       width: 100%;
     }
-
     #buy-btn {
       padding: 0.75rem 1rem;
       font-size: 1rem;
@@ -91,63 +83,31 @@
       min-height: 44px;
       min-width: 44px;
     }
-
-    #buy-btn:focus {
-      outline: 3px solid #333;
-    }
-
+    #buy-btn:focus { outline: 3px solid #333; }
     #info {
       font-size: 0.9rem;
       text-align: center;
       color: #555;
     }
-
     #game-message {
       margin-top: 0.5rem;
       font-size: 1.1rem;
       color: var(--enemy);
       text-align: center;
     }
-
-    #faction-select {
-      margin-bottom: 0.5rem;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 0.5rem;
-      width: 100%;
-    }
-
-    #faction-select label {
-      font-weight: bold;
-    }
-
-    #faction {
-      padding: 0.25rem 0.5rem;
-      font-size: 1rem;
-    }
-
-    /* Reduced motion */
     @media (prefers-reduced-motion: reduce) {
-      * {
-        transition: none !important;
-        animation: none !important;
-      }
+      * { transition: none !important; animation: none !important; }
     }
   </style>
 </head>
 <body>
-  <header>
-    <h1>🛡️ Mini Maul Defense – Factions Edition</h1>
-  </header>
-
+  <header><h1>🛡️ Mini Maul Defense – Maze Edition</h1></header>
   <main>
     <section id="hud" aria-label="Game status">
       <div id="money" aria-live="polite">Gold: 200</div>
       <div id="lives" aria-live="polite">Lives: 20</div>
       <div id="wave" aria-live="polite">Wave: 1</div>
     </section>
-
     <div id="faction-select">
       <label for="faction">Faction:</label>
       <select id="faction">
@@ -157,24 +117,19 @@
         <option value="Gondor">Gondor</option>
       </select>
     </div>
-
     <div id="game-container">
       <canvas id="game-canvas" aria-label="Tower defense game area" tabindex="0"></canvas>
     </div>
-
     <section id="controls" aria-label="Game controls">
       <button id="buy-btn" aria-label="Buy new tower">Buy Tower (100)</button>
-      <p id="info">Select a faction, tap “Buy Tower” then tap a non‑path tile to place. Tap a placed tower to upgrade (80).</p>
+      <p id="info">Select a faction, tap “Buy Tower” then tap any free tile to place. Enemies find their own path from left to right. Tap a placed tower to upgrade (80). Don’t block the only path!</p>
     </section>
-
     <div id="game-message" aria-live="assertive"></div>
   </main>
-
   <script>
     (function () {
       const canvas = document.getElementById('game-canvas');
       const ctx = canvas.getContext('2d');
-
       const moneyEl = document.getElementById('money');
       const livesEl = document.getElementById('lives');
       const waveEl = document.getElementById('wave');
@@ -183,56 +138,89 @@
       const factionSelect = document.getElementById('faction');
 
       // Grid settings
-      const COLS = 10;
-      const ROWS = 6;
-      const PATH_ROW = 2;
+      const COLS = 12;
+      const ROWS = 8;
+      const spawn = { col: 0, row: Math.floor(ROWS / 2) };
+      const goal  = { col: COLS - 1, row: Math.floor(ROWS / 2) };
 
-      // Faction configurations
+      // Faction stats
       const FACTIONS = {
-        Rohan: { range: 1.8, fireRate: 1.0, baseDamage: 1 },
+        Rohan:    { range: 1.8, fireRate: 1.0, baseDamage: 1 },
         Isengard: { range: 1.5, fireRate: 0.8, baseDamage: 2 },
-        Mordor: { range: 1.6, fireRate: 1.2, baseDamage: 0.8 },
-        Gondor: { range: 2.2, fireRate: 0.7, baseDamage: 1.2 }
+        Mordor:   { range: 1.6, fireRate: 1.2, baseDamage: 0.8 },
+        Gondor:   { range: 2.2, fireRate: 0.7, baseDamage: 1.2 }
       };
       let currentFaction = 'Rohan';
+
+      // Colour constants for the canvas (CSS vars can’t be read by context)
+      const COLORS = { spawn: '#8ecae6', goal: '#219ebc' };
 
       // Game state
       let tileSize = 40;
       let towers = [];
       let enemies = [];
       let bullets = [];
-
+      let blocked = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
       let money = 200;
       let lives = 20;
       let wave = 1;
       let spawnTimer = 0;
       let spawnInterval = 2000; // ms
       let enemyHP = 5;
-      let state = 'playing'; // 'playing', 'placing'
+      let state = 'playing'; // 'playing' or 'placing'
       let lastTime = 0;
 
-      const TOWER_COST = 100;
+      const TOWER_COST   = 100;
       const UPGRADE_COST = 80;
-      const MAX_LEVEL = 3;
+      const MAX_LEVEL    = 3;
 
       // Resize canvas
       function resizeCanvas() {
-        const container = document.getElementById('game-container');
-        const width = container.clientWidth;
-        tileSize = width / COLS;
+        const width  = document.getElementById('game-container').clientWidth;
+        tileSize     = width / COLS;
         canvas.width = width;
-        canvas.height = tileSize * ROWS;
+        canvas.height= tileSize * ROWS;
       }
 
-      // Convert grid to pixel
+      // Grid → pixel
       function toPixel(col, row) {
-        return {
-          x: col * tileSize + tileSize / 2,
-          y: row * tileSize + tileSize / 2
-        };
+        return { x: col * tileSize + tileSize / 2, y: row * tileSize + tileSize / 2 };
       }
 
-      // Create tower based on current faction
+      // BFS for pathfinding
+      function findPath() {
+        const queue   = [];
+        const visited = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+        const prev    = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+        queue.push({ row: spawn.row, col: spawn.col });
+        visited[spawn.row][spawn.col] = true;
+        const dirs = [ { row: 1, col: 0 }, { row: -1, col: 0 }, { row: 0, col: 1 }, { row: 0, col: -1 } ];
+        while (queue.length) {
+          const cur = queue.shift();
+          if (cur.row === goal.row && cur.col === goal.col) break;
+          for (const dir of dirs) {
+            const nr = cur.row + dir.row, nc = cur.col + dir.col;
+            if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS &&
+                !visited[nr][nc] && !blocked[nr][nc]) {
+              visited[nr][nc] = true;
+              prev[nr][nc]    = cur;
+              queue.push({ row: nr, col: nc });
+            }
+          }
+        }
+        if (!visited[goal.row][goal.col]) return null;
+        const path = [];
+        let cell = { row: goal.row, col: goal.col };
+        while (!(cell.row === spawn.row && cell.col === spawn.col)) {
+          path.push(cell);
+          cell = prev[cell.row][cell.col];
+        }
+        path.push({ row: spawn.row, col: spawn.col });
+        path.reverse();
+        return path;
+      }
+
+      // Create tower with faction stats
       function createTower(col, row) {
         const cfg = FACTIONS[currentFaction];
         return {
@@ -246,45 +234,91 @@
         };
       }
 
-      // Create enemy
+      // Place tower and ensure path remains
+      function placeTower(col, row) {
+        if ((col === spawn.col && row === spawn.row) || (col === goal.col && row === goal.row)) {
+          msgEl.textContent = 'Cannot build on spawn or goal.';
+          return false;
+        }
+        if (blocked[row][col]) {
+          msgEl.textContent = 'Tile already occupied.';
+          return false;
+        }
+        blocked[row][col] = true;
+        const newPath = findPath();
+        if (!newPath) {
+          blocked[row][col] = false;
+          msgEl.textContent = 'That tower would block the path! Choose another spot.';
+          return false;
+        }
+        towers.push(createTower(col, row));
+        money -= TOWER_COST;
+        updateUI();
+        msgEl.textContent = '';
+        return true;
+      }
+
+      // Create enemy and compute its path
       function createEnemy() {
+        const path = findPath();
+        if (!path) return null;
+        const start = toPixel(spawn.col, spawn.row);
         return {
-          x: -0.5,
-          y: PATH_ROW + 0.5,
+          x: start.x,
+          y: start.y,
           speed: 1.0 + wave * 0.1,
-          hp: enemyHP
+          hp: enemyHP,
+          path,
+          targetIndex: 1
         };
       }
 
-      // Update UI
       function updateUI() {
-        moneyEl.textContent = \`Gold: \${money}\`;
-        livesEl.textContent = \`Lives: \${lives}\`;
-        waveEl.textContent = \`Wave: \${wave}\`;
+        moneyEl.textContent = `Gold: ${money}`;
+        livesEl.textContent = `Lives: ${lives}`;
+        waveEl.textContent  = `Wave: ${wave}`;
       }
 
-      // Spawn enemies
+      // Spawn enemies over time
       function maybeSpawnEnemy(dt) {
         spawnTimer += dt;
         if (spawnTimer > spawnInterval) {
           spawnTimer -= spawnInterval;
-          enemies.push(createEnemy());
+          const enemy = createEnemy();
+          if (enemy) enemies.push(enemy);
         }
       }
 
-      // Update enemies
+      // Move enemies and handle goal/hits
       function updateEnemies(dt) {
         for (let i = enemies.length - 1; i >= 0; i--) {
           const e = enemies[i];
-          e.x += e.speed * dt;
-          if (e.x * tileSize > canvas.width + tileSize) {
+          if (!e.path || e.targetIndex >= e.path.length) {
             enemies.splice(i, 1);
             lives--;
             updateUI();
-            if (lives <= 0) {
-              gameOver('Enemies broke through!');
-            }
+            if (lives <= 0) gameOver('Enemies broke through!');
             continue;
+          }
+          const targetCell = e.path[e.targetIndex];
+          const tgt = toPixel(targetCell.col, targetCell.row);
+          const dx = tgt.x - e.x, dy = tgt.y - e.y;
+          const dist = Math.hypot(dx, dy);
+          const moveDist = e.speed * dt * tileSize;
+          if (dist <= moveDist) {
+            e.x = tgt.x;
+            e.y = tgt.y;
+            e.targetIndex++;
+            if (e.targetIndex >= e.path.length) {
+              enemies.splice(i, 1);
+              lives--;
+              updateUI();
+              if (lives <= 0) gameOver('Enemies broke through!');
+              continue;
+            }
+          } else {
+            e.x += (dx / dist) * moveDist;
+            e.y += (dy / dist) * moveDist;
           }
           if (e.hp <= 0) {
             enemies.splice(i, 1);
@@ -294,18 +328,16 @@
         }
       }
 
-      // Update towers (shooting)
+      // Towers shoot the nearest enemy in range
       function updateTowers(dt) {
         towers.forEach(tower => {
           tower.cooldown -= dt;
           if (tower.cooldown <= 0) {
-            let nearest = null;
-            let nearestDist = Infinity;
+            let nearest = null, nearestDist = Infinity;
             enemies.forEach(enemy => {
-              const dist = Math.hypot(
-                enemy.x - (tower.col + 0.5),
-                enemy.y - (tower.row + 0.5)
-              );
+              const dx = (enemy.x - (tower.col + 0.5) * tileSize) / tileSize;
+              const dy = (enemy.y - (tower.row + 0.5) * tileSize) / tileSize;
+              const dist = Math.hypot(dx, dy);
               if (dist < tower.range && dist < nearestDist) {
                 nearest = enemy;
                 nearestDist = dist;
@@ -315,8 +347,8 @@
               const damage = tower.baseDamage * tower.level;
               nearest.hp -= damage;
               bullets.push({
-                from: { col: tower.col + 0.5, row: tower.row + 0.5 },
-                to: { x: nearest.x, y: nearest.y },
+                from: { x: (tower.col + 0.5) * tileSize, y: (tower.row + 0.5) * tileSize },
+                to:   { x: nearest.x, y: nearest.y },
                 timer: 0.15
               });
               tower.cooldown = 1 / (tower.fireRate * tower.level);
@@ -325,13 +357,10 @@
         });
       }
 
-      // Update bullets
       function updateBullets(dt) {
         for (let i = bullets.length - 1; i >= 0; i--) {
           bullets[i].timer -= dt;
-          if (bullets[i].timer <= 0) {
-            bullets.splice(i, 1);
-          }
+          if (bullets[i].timer <= 0) bullets.splice(i, 1);
         }
       }
 
@@ -352,51 +381,45 @@
           ctx.lineTo(canvas.width, r * tileSize);
           ctx.stroke();
         }
-        // Path row
-        ctx.fillStyle = 'var(--path)';
-        ctx.fillRect(0, PATH_ROW * tileSize, canvas.width, tileSize);
+        // Spawn & goal highlight
+        ctx.fillStyle = COLORS.spawn;
+        ctx.fillRect(spawn.col * tileSize, spawn.row * tileSize, tileSize, tileSize);
+        ctx.fillStyle = COLORS.goal;
+        ctx.fillRect(goal.col * tileSize, goal.row * tileSize, tileSize, tileSize);
         // Towers
         towers.forEach(tower => {
-          const px = tower.col * tileSize;
-          const py = tower.row * tileSize;
           ctx.fillStyle = 'var(--tower)';
-          ctx.fillRect(px + 4, py + 4, tileSize - 8, tileSize - 8);
+          ctx.fillRect(tower.col * tileSize + 4, tower.row * tileSize + 4, tileSize - 8, tileSize - 8);
           ctx.fillStyle = '#333';
-          ctx.font = \`\${tileSize * 0.4}px sans-serif\`;
+          ctx.font = `${tileSize * 0.4}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(tower.level, px + tileSize / 2, py + tileSize / 2);
+          ctx.fillText(tower.level, tower.col * tileSize + tileSize / 2, tower.row * tileSize + tileSize / 2);
         });
         // Enemies
         enemies.forEach(enemy => {
-          const px = enemy.x * tileSize;
-          const py = enemy.y * tileSize;
           const size = tileSize * 0.6;
           ctx.fillStyle = 'var(--enemy)';
           ctx.beginPath();
-          ctx.arc(px, py, size / 2, 0, Math.PI * 2);
+          ctx.arc(enemy.x, enemy.y, size / 2, 0, Math.PI * 2);
           ctx.fill();
           ctx.fillStyle = '#000';
-          ctx.fillRect(px - size / 2, py - size / 2 - 6, size, 4);
+          ctx.fillRect(enemy.x - size / 2, enemy.y - size / 2 - 6, size, 4);
           ctx.fillStyle = '#00b300';
           const hpWidth = (enemy.hp / enemyHP) * size;
-          ctx.fillRect(px - size / 2, py - size / 2 - 6, hpWidth, 4);
+          ctx.fillRect(enemy.x - size / 2, enemy.y - size / 2 - 6, hpWidth, 4);
         });
         // Bullets
         bullets.forEach(bullet => {
-          const from = toPixel(bullet.from.col, bullet.from.row);
-          const toX = bullet.to.x * tileSize;
-          const toY = bullet.to.y * tileSize;
           ctx.strokeStyle = 'var(--bullet)';
           ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.moveTo(from.x, from.y);
-          ctx.lineTo(toX, toY);
+          ctx.moveTo(bullet.from.x, bullet.from.y);
+          ctx.lineTo(bullet.to.x, bullet.to.y);
           ctx.stroke();
         });
       }
 
-      // Main loop
       function gameLoop(timestamp) {
         if (!lastTime) lastTime = timestamp;
         const dt = (timestamp - lastTime) / 1000;
@@ -411,43 +434,35 @@
         requestAnimationFrame(gameLoop);
       }
 
-      // Handle canvas clicks
       function handleCanvasClick(event) {
         const rect = canvas.getBoundingClientRect();
-        const x = (event.clientX - rect.left);
-        const y = (event.clientY - rect.top);
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
         const col = Math.floor(x / tileSize);
         const row = Math.floor(y / tileSize);
+        if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
         if (state === 'placing') {
-          if (row !== PATH_ROW && !towers.some(t => t.col === col && t.row === row)) {
-            if (money >= TOWER_COST) {
-              towers.push(createTower(col, row));
-              money -= TOWER_COST;
-              updateUI();
-              msgEl.textContent = '';
-              state = 'playing';
-            } else {
-              msgEl.textContent = 'Not enough gold to place a tower!';
-              state = 'playing';
-            }
-          } else {
-            msgEl.textContent = 'Cannot place tower on path or existing tower.';
+          if (money < TOWER_COST) {
+            msgEl.textContent = 'Not enough gold to place a tower.';
             state = 'playing';
+            return;
           }
+          placeTower(col, row);
+          state = 'playing';
         } else {
           const tower = towers.find(t => t.col === col && t.row === row);
           if (tower) {
             if (tower.level >= MAX_LEVEL) {
-              msgEl.textContent = 'Tower is already max level.';
+              msgEl.textContent = 'Tower already max level.';
               return;
             }
             if (money >= UPGRADE_COST) {
               money -= UPGRADE_COST;
               tower.level++;
-              tower.range += 0.3;
-              tower.fireRate += 0.3;
+              tower.range   += 0.3;
+              tower.fireRate+= 0.3;
               updateUI();
-              msgEl.textContent = \`Tower upgraded to level \${tower.level}!\`;
+              msgEl.textContent = `Tower upgraded to level ${tower.level}!`;
             } else {
               msgEl.textContent = 'Not enough gold to upgrade.';
             }
@@ -455,24 +470,21 @@
         }
       }
 
-      // Buy button handler
       function handleBuyClick() {
         if (state === 'placing') {
           state = 'playing';
           msgEl.textContent = '';
         } else {
           state = 'placing';
-          msgEl.textContent = 'Tap a non‑path tile to place your tower.';
+          msgEl.textContent = 'Tap any free tile to place your tower.';
         }
       }
 
-      // Game over
       function gameOver(text) {
         state = 'gameOver';
-        msgEl.textContent = \`\${text} Game Over! Refresh the page to play again.\`;
+        msgEl.textContent = `${text} Game Over! Refresh to play again.`;
       }
 
-      // Increase wave
       function nextWave() {
         wave++;
         enemyHP += 2;
@@ -481,41 +493,25 @@
       }
 
       // Event listeners
-      window.addEventListener('resize', () => {
-        resizeCanvas();
-        draw();
-      });
-
+      window.addEventListener('resize', () => { resizeCanvas(); draw(); });
       canvas.addEventListener('click', handleCanvasClick);
-      buyBtn.addEventListener('click', handleBuyClick);
       canvas.addEventListener('touchstart', e => {
         e.preventDefault();
-        const touch = e.changedTouches[0];
-        handleCanvasClick(touch);
+        handleCanvasClick(e.changedTouches[0]);
       }, { passive: false });
-      buyBtn.addEventListener('touchstart', e => {
-        e.preventDefault();
-        handleBuyClick();
-      }, { passive: false });
-
-      // Faction change handler
+      buyBtn.addEventListener('click', handleBuyClick);
+      buyBtn.addEventListener('touchstart', e => { e.preventDefault(); handleBuyClick(); }, { passive: false });
       factionSelect.addEventListener('change', () => {
         currentFaction = factionSelect.value;
-        msgEl.textContent = \`Faction set to \${currentFaction}. Towers will use new stats.\`;
+        msgEl.textContent = `Faction set to ${currentFaction}.`;
       });
 
-      // Initialize
       function init() {
         resizeCanvas();
         updateUI();
         requestAnimationFrame(gameLoop);
-        setInterval(() => {
-          if (state === 'playing') {
-            nextWave();
-          }
-        }, 20000);
+        setInterval(() => { if (state === 'playing') nextWave(); }, 20000);
       }
-
       init();
     })();
   </script>
