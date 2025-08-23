@@ -3,517 +3,2595 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mini Maul Defense – Maze Edition</title>
-  <meta name="description" content="A mini tower defense game with dynamic maze pathfinding.">
+  <title>Mini Maul Defense – Extended Edition</title>
+  <meta name="description" content="Maze-style tower defense with factions and multiple tower types.">
   <style>
-    :root {
-      --bg-color: #f0f4f8;
-      --accent: #4b8bbe;
-      --path: #e0e0e0;
-      --tower: #ffb703;
-      --enemy: #e63946;
-      --bullet: #2a9d8f;
-      --spawn: #8ecae6;
-      --goal: #219ebc;
+    :root{
+      --bg:#eef3f8;
+      --panel:#ffffff;
+      --accent:#4b8bbe;
+      --text:#1f2937;
+      --muted:#6b7280;
+      --tower:#ffb703;
+      --enemy:#e63946;
+      --bullet:#2a9d8f;
+      --spawn:#8ecae6;
+      --goal:#219ebc;
+      --obstacle:#e2e8f0;
+      --good:#10b981;
+      --bad:#ef4444;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: Arial, sans-serif;
-      background-color: var(--bg-color);
-      color: #333;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-      align-items: center;
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;align-items:center;min-height:100vh}
+    header{padding:1rem;text-align:center}
+    h1{font-size:1.6rem}
+    /* Increase the maximum layout width by 30% to enlarge the entire play area and
+       controls.  This makes everything on screen roughly 30% larger on
+       desktop displays, improving visibility. */
+    main{width:100%;max-width:936px;padding:0 1rem 2rem;display:flex;flex-direction:column;gap:.5rem;align-items:center}
+    #hud{display:flex;justify-content:space-between;gap:.75rem;width:100%;font-size:1rem}
+    #controls{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;width:100%;justify-content:center}
+    select,button{font-size:1rem}
+    .btn{background:var(--accent);color:#fff;border:none;border-radius:.6rem;padding:.7rem 1rem;cursor:pointer;min-height:44px;min-width:44px}
+    .btn.gray{background:#9ca3af;color:#111}
+    .btn:focus{outline:3px solid #111}
+    #game-wrap{width:100%;border:2px solid var(--accent);background:var(--panel)}
+    #canvas{width:100%;display:block;background:#fff}
+    #legend{font-size:.9rem;color:var(--muted);text-align:center}
+    #msg{
+      min-height:1.25rem;
+      color:var(--enemy);
+      text-align:center;
+      /* Smooth fade-in/out for game messages */
+      transition: opacity 0.5s ease-in-out;
+      opacity: 1;
     }
-    header { padding: 1rem; text-align: center; }
-    h1 { font-size: 1.6rem; margin-bottom: 0.5rem; }
-    main {
-      width: 100%;
-      max-width: 640px;
-      padding: 0 1rem 2rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+    /* Faction icon displayed in the HUD */
+    #factionIcon{
+      font-size:1.4rem;
+      line-height:1;
     }
-    #hud {
-      display: flex;
-      justify-content: space-between;
-      width: 100%;
-      margin-bottom: 0.5rem;
-      font-size: 1rem;
-    }
-    #faction-select {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 100%;
-      gap: 0.5rem;
-      margin-bottom: 0.5rem;
-    }
-    #faction-select label { font-weight: bold; }
-    #faction { padding: 0.3rem 0.5rem; font-size: 1rem; }
-    #game-container {
-      width: 100%;
-      border: 2px solid var(--accent);
-      background-color: #fff;
-      position: relative;
-    }
-    #game-canvas {
-      width: 100%;
-      display: block;
-      background-color: #fff;
-    }
-    #controls {
-      margin-top: 0.5rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.5rem;
-      width: 100%;
-    }
-    #buy-btn {
-      padding: 0.75rem 1rem;
-      font-size: 1rem;
-      background-color: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: 0.5rem;
-      cursor: pointer;
-      min-height: 44px;
-      min-width: 44px;
-    }
-    #buy-btn:focus { outline: 3px solid #333; }
-    #info {
-      font-size: 0.9rem;
-      text-align: center;
-      color: #555;
-    }
-    #game-message {
-      margin-top: 0.5rem;
-      font-size: 1.1rem;
-      color: var(--enemy);
-      text-align: center;
-    }
-    @media (prefers-reduced-motion: reduce) {
-      * { transition: none !important; animation: none !important; }
+    #heroInfo{font-size:0.9rem;color:var(--accent);text-align:center;margin-top:0.25rem}
+    @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+    /* Mobile optimisations: on narrow screens the game scales to fill the
+       viewport width, and controls stack vertically for readability. */
+    @media (max-width: 640px){
+      main{ max-width:100%; padding:0 0.5rem 2rem; }
+      #controls{ flex-direction:column; align-items:flex-start; }
+      #speedControls{ flex-wrap:wrap; gap:0.25rem; }
+      #quote{ font-size:0.75rem; }
     }
   </style>
 </head>
 <body>
-  <header><h1>🛡️ Mini Maul Defense – Maze Edition</h1></header>
-  <main>
-    <section id="hud" aria-label="Game status">
-      <div id="money" aria-live="polite">Gold: 200</div>
-      <div id="lives" aria-live="polite">Lives: 20</div>
-      <div id="wave" aria-live="polite">Wave: 1</div>
-    </section>
-    <div id="faction-select">
-      <label for="faction">Faction:</label>
-      <select id="faction">
-        <option value="Rohan">Rohan</option>
-        <option value="Isengard">Isengard</option>
-        <option value="Mordor">Mordor</option>
-        <option value="Gondor">Gondor</option>
-      </select>
-    </div>
-    <div id="game-container">
-      <canvas id="game-canvas" aria-label="Tower defense game area" tabindex="0"></canvas>
-    </div>
-    <section id="controls" aria-label="Game controls">
-      <button id="buy-btn" aria-label="Buy new tower">Buy Tower (100)</button>
-      <p id="info">Select a faction, tap “Buy Tower” then tap any free tile to place. Enemies find their own path from left to right. Tap a placed tower to upgrade (80). Don’t block the only path!</p>
-    </section>
-    <div id="game-message" aria-live="assertive"></div>
-  </main>
-  <script>
-    (function () {
-      const canvas = document.getElementById('game-canvas');
-      const ctx = canvas.getContext('2d');
-      const moneyEl = document.getElementById('money');
-      const livesEl = document.getElementById('lives');
-      const waveEl = document.getElementById('wave');
-      const msgEl = document.getElementById('game-message');
-      const buyBtn = document.getElementById('buy-btn');
-      const factionSelect = document.getElementById('faction');
+<header><h1>🛡️ Mini Maul Defense – Extended Edition</h1></header>
+<main>
+  <section id="hud" aria-label="Game status">
+    <div id="gold" aria-live="polite">Gold: 200</div>
+    <div id="lives" aria-live="polite">Lives: 20</div>
+    <div id="wave" aria-live="polite">Wave: 1</div>
+    <!-- Display the selected faction's icon for visual flair -->
+    <div id="factionIcon" aria-hidden="true"></div>
+    <!-- Display current score and best score across plays -->
+    <div id="score" aria-live="polite">Score: 0 | Best: 0</div>
+  </section>
 
-      // Grid settings
-      const COLS = 12;
-      const ROWS = 8;
-      const spawn = { col: 0, row: Math.floor(ROWS / 2) };
-      const goal  = { col: COLS - 1, row: Math.floor(ROWS / 2) };
+  <!-- Hero information display -->
+  <div id="heroInfo" aria-live="polite"></div>
 
-      // Faction stats
-      const FACTIONS = {
-        Rohan:    { range: 1.8, fireRate: 1.0, baseDamage: 1 },
-        Isengard: { range: 1.5, fireRate: 0.8, baseDamage: 2 },
-        Mordor:   { range: 1.6, fireRate: 1.2, baseDamage: 0.8 },
-        Gondor:   { range: 2.2, fireRate: 0.7, baseDamage: 1.2 }
-      };
-      let currentFaction = 'Rohan';
+  <div id="controls">
+    <label for="faction"><strong>Faction:</strong></label>
+    <select id="faction" aria-label="Select faction">
+      <option>Gondor</option>
+      <option>Rohan</option>
+      <option>Isengard</option>
+      <option>Mordor</option>
+    </select>
 
-      // Colour constants for the canvas (CSS vars can’t be read by context)
-      const COLORS = { spawn: '#8ecae6', goal: '#219ebc' };
+    <label for="towerType"><strong>Tower:</strong></label>
+    <select id="towerType" aria-label="Select tower type">
+      <option value="artillery">Artillery</option>
+      <option value="slow">Slow</option>
+      <option value="rapid">Rapid</option>
+      <option value="sniper">Sniper</option>
+      <option value="hero">Hero</option>
+      <!-- Specialized tower for eliminating flying foes -->
+      <option value="antiAir">Anti-Air</option>
+    </select>
 
-      // Game state
-      let tileSize = 40;
-      let towers = [];
-      let enemies = [];
-      let bullets = [];
-      let blocked = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
-      let money = 200;
-      let lives = 20;
-      let wave = 1;
-      let spawnTimer = 0;
-      let spawnInterval = 2000; // ms
-      let enemyHP = 5;
-      let state = 'playing'; // 'playing' or 'placing'
-      let lastTime = 0;
+    <label for="map"><strong>Map:</strong></label>
+    <select id="map" aria-label="Select map template">
+      <option value="open">Open Field</option>
+      <option value="corridors">Twin Corridors</option>
+      <option value="islands">Islands</option>
+      <!-- New map with a bent path for more tactical placement -->
+      <option value="bent">Bended Path</option>
+      <!-- New map featuring a central castle that the road must go around -->
+      <option value="gondolin" selected>Gondolin Keep</option>
+    </select>
 
-      const TOWER_COST   = 100;
-      const UPGRADE_COST = 80;
-      const MAX_LEVEL    = 3;
+    <button id="placeBtn" class="btn" aria-pressed="false">Place (100)</button>
+    <button id="sellBtn" class="btn gray" aria-pressed="false">Sell Mode</button>
+    <!-- Button to enable relocating heroes.  When active, tap a hero then tap a new
+         square to move them -->
+    <button id="moveHeroBtn" class="btn gray" aria-pressed="false">Move Hero</button>
 
-      // Resize canvas
-      function resizeCanvas() {
-        const width  = document.getElementById('game-container').clientWidth;
-        tileSize     = width / COLS;
-        canvas.width = width;
-        canvas.height= tileSize * ROWS;
+    <!-- Game speed controls: stop the action entirely or adjust playback speed to
+         1×, 1.5× or 2×.  Clicking a button sets the global gameSpeed and
+         highlights the selected speed. -->
+    <span id="speedControls" style="display:flex;gap:.4rem;align-items:center;">
+      <label for="speedStop" style="font-weight:bold;">Speed:</label>
+      <button id="speedStop" class="btn gray" data-speed="0" aria-pressed="false">Stop</button>
+      <!-- Default speed is 1× so this button is highlighted (no gray) and pressed -->
+      <button id="speed1" class="btn" data-speed="1" aria-pressed="true">1×</button>
+      <button id="speed15" class="btn gray" data-speed="1.5" aria-pressed="false">1.5×</button>
+      <button id="speed2" class="btn gray" data-speed="2" aria-pressed="false">2×</button>
+    </span>
+  </div>
+
+  <div id="game-wrap"><canvas id="canvas" aria-label="Game canvas" tabindex="0"></canvas></div>
+  <p id="legend">Choose a faction and tower type. Tap <em>Place</em> then tap a free tile (green highlight) to build. Towers have unique abilities (splash, slow, poison, stun, knockback, aura, fear). You cannot block the only path. Tap towers to upgrade. Toggle <em>Sell</em> to refund 60%.</p>
+  <div id="msg" aria-live="assertive"></div>
+  <!-- Inspirational Tolkien quote displayed in gold at the bottom right.  It
+       reminds players that even in the darkest times there is hope and
+       encourages them to overcome evil. -->
+  <p id="quote" style="font-style:italic;color:#d4af37;text-align:right;width:100%;margin-top:0.5rem;">
+    “There is some good in this world, and it’s worth fighting for.” – Samwise Gamgee
+  </p>
+</main>
+
+<script>
+(() => {
+  const cvs = document.getElementById('canvas');
+  const ctx = cvs.getContext('2d');
+  const goldEl = document.getElementById('gold');
+  const livesEl = document.getElementById('lives');
+  const waveEl = document.getElementById('wave');
+  const msgEl = document.getElementById('msg');
+  const placeBtn = document.getElementById('placeBtn');
+  const sellBtn = document.getElementById('sellBtn');
+  const factionSel = document.getElementById('faction');
+  const towerSel = document.getElementById('towerType');
+  const mapSel = document.getElementById('map');
+
+  // Grid settings
+  // Increase the overall dimensions of the battlefield to provide more space
+  // for towers and to accommodate longer, more tactical paths.  Doubling
+  // both the columns and rows from the original design gives us a 28×20
+  // arena.  The tile size will auto‑scale based on the container width
+  // so the game still fits nicely on any screen.
+  const COLS = 28;
+  const ROWS = 20;
+  let tile = 40;
+  // The spawn and goal rows are anchored to the vertical midpoint of the
+  // enlarged grid so the central corridor remains symmetric.
+  const spawn = { col: 0, row: Math.floor(ROWS/2) };
+  const goal  = { col: COLS-1, row: Math.floor(ROWS/2) };
+
+  // Base game state
+  let gold = 200;
+  let lives = 20;
+  let wave = 1;
+  let enemyHP = 5;
+  let spawnMs = 2000;
+  let spawnTimer = 0;
+
+  // Score tracking: current run and persistent high score using localStorage
+  let score = 0;
+  let highScore = parseInt(localStorage.getItem('maulHighScore')) || 0;
+
+  let obstacles = make2D(false);
+  let towers = [];
+  let enemies = [];
+  let bullets = [];
+
+  // For path and building
+  let blocked = make2D(false);
+  let placing = false;
+  let selling = false;
+
+  // Data for the special central castle used in the Gondolin map.  When
+  // present, this object holds the row, column, width and height of the
+  // castle area so the draw routine can render an icon on top.  Null
+  // indicates no castle on the current map.
+  let castleData = null;
+
+  // Game speed multiplier.  1× is normal speed.  Larger values accelerate
+  // enemy movement, bullet travel and spawn timing.  A value of 0 pauses
+  // most in-game actions.  Controlled via the Speed buttons in the UI.
+  let gameSpeed = 1;
+
+  // Placement ghost
+  let ghost = {active:false, col:0, row:0, valid:false};
+
+  // Tower currently hovered over for displaying its range; null when none
+  let hoverTower = null;
+
+  // Summoned creatures created by hero abilities.  These units travel along
+  // the path and damage the first enemy they collide with before
+  // disappearing.  Each entry contains position, path, index, speed,
+  // damage, icon and a reference to the hero that summoned it so kills can
+  // be attributed correctly.
+  let summons = [];
+
+  // Move‑hero mode state.  When the player toggles move mode, they must
+  // select a hero and then a target square for relocation.  The
+  // variables below track whether move mode is active and which hero is
+  // currently selected for movement.
+  let movingHeroMode = false;
+  let heroToMove = null;
+
+  // Tower cost display update
+  function updatePlaceButton() {
+    const faction = factionSel.value;
+    const ttype = towerSel.value;
+    const baseCost = TOWER_DATA[faction][ttype].baseCost;
+    placeBtn.textContent = `Place (${baseCost})`;
+  }
+
+  // Tower definitions per faction
+  // Each tower: baseCost, base stats (damage, range (tiles), cooldown (s), splash (tiles), slow {p,d}, dot {dps,d}, pierce (additional targets), critChance)
+  // Upgrades: array with modifications (cost and adjustments)
+  const TOWER_DATA = {
+    // Detailed tower definitions per faction with real features
+    Gondor: {
+      artillery: {
+        name: 'Eagle Nest',
+        baseCost: 150,
+        base: {
+          damage: 50,
+          range: 10,
+          cooldown: 5,
+          splash: 2,
+          slow: {p: 0, d: 0},
+          dot: {dps: 0, d: 0},
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: {p: 0, d: 0},
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // Level 2: +20 splash damage, adds minor stun (1s)
+          { cost: 100, damage: 20, stun: 1 },
+          // Level 3: +2 range, -1s cooldown
+          { cost: 150, range: 2, cooldown: -1 },
+          // Level 4: +30 damage, extra eagle (multi-hit -> pierce +1)
+          { cost: 200, damage: 30, pierce: 1 }
+        ]
+      },
+      slow: {
+        name: 'Ranger Outpost',
+        baseCost: 120,
+        base: {
+          damage: 20,
+          // Slow towers trade longer range for their ability to hinder foes.  Reduce
+          // the attack radius so players must think carefully about placement.
+          range: 5,
+          cooldown: 1.5,
+          splash: 0,
+          slow: { p: 0.3, d: 3 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // +10 damage, +2s slow duration
+          { cost: 80, damage: 10, slow: { p: 0, d: 2 } },
+          // +2 range, slow stacks to 50% (+0.2 p)
+          { cost: 120, range: 2, slow: { p: 0.2, d: 0 } },
+          // Adds poison DOT 10/s for 3s
+          { cost: 160, dot: { dps: 10, d: 3 } }
+        ]
+      },
+      rapid: {
+        name: 'Archer Battlement',
+        baseCost: 100,
+        base: {
+          damage: 10,
+          range: 7,
+          cooldown: 0.5,
+          splash: 0,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // +5 damage, -0.1s cooldown
+          { cost: 70, damage: 5, cooldown: -0.1 },
+          // +1 range, adds piercing (+1 target)
+          { cost: 100, range: 1, pierce: 1 },
+          // -0.2s cooldown, +10% crit chance
+          { cost: 130, cooldown: -0.2, crit: 0.1 }
+        ]
+      },
+      sniper: {
+        name: 'Trebuchet Emplacement',
+        baseCost: 180,
+        base: {
+          damage: 100,
+          range: 12,
+          cooldown: 4,
+          splash: 0,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // +40 damage, +2 range
+          { cost: 120, damage: 40, range: 2 },
+          // -1s cooldown, ignores 20% armor (bonus damage)
+          { cost: 180, cooldown: -1, bonus: 0.2 },
+          // +60 damage, adds splash 1
+          { cost: 240, damage: 60, splash: 1 }
+        ]
       }
-
-      // Grid → pixel
-      function toPixel(col, row) {
-        return { x: col * tileSize + tileSize / 2, y: row * tileSize + tileSize / 2 };
+      ,
+      // Anti-air tower: focuses exclusively on flying enemies.  It has a
+      // respectable range and fires rapidly with modest damage.  Because it
+      // only attacks flyers, it benefits from a bonusFlying property that
+      // doubles its damage against aerial foes.  Each faction shares the
+      // same stats for simplicity.
+      antiAir: {
+        name: 'Aerie Guard',
+        baseCost: 130,
+        base: {
+          damage: 15,
+          range: 8,
+          cooldown: 0.8,
+          splash: 0,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0,
+          bonusFlying: 1
+        },
+        upgrades: [
+          // +5 damage
+          { cost: 80, damage: 5 },
+          // +2 range
+          { cost: 100, range: 2 },
+          // -0.1s cooldown, +10 damage
+          { cost: 120, cooldown: -0.1, damage: 10 }
+        ]
       }
+    },
+    Rohan: {
+      artillery: {
+        name: 'Horn of Helm',
+        baseCost: 140,
+        base: {
+          damage: 45,
+          range: 9,
+          cooldown: 6,
+          splash: 2,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 2,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // +15 damage, +1 knockback
+          { cost: 90, damage: 15, knockback: 1 },
+          // -1s cooldown, adds minor damage aura (dps 5, range 3)
+          { cost: 140, cooldown: -1, aura: { dps: 5, range: 3 } },
+          // +25 damage, summons horse charge (pierce +1)
+          { cost: 190, damage: 25, pierce: 1 }
+        ]
+      },
+      slow: {
+        name: 'Spear Thrower Hut',
+        baseCost: 110,
+        base: {
+          damage: 18,
+          // Reduced range for slow towers to offset their crowd‑control power
+          range: 5,
+          cooldown: 1.5,
+          splash: 0,
+          slow: { p: 0.35, d: 4 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // +8 damage, +10% slow
+          { cost: 70, damage: 8, slow: { p: 0.1, d: 0 } },
+          // +2 range, pierces to slow 2 enemies
+          { cost: 110, range: 2, pierce: 1 },
+          // +3s slow duration, adds bleed 8/s for 3s
+          { cost: 150, slow: { p: 0, d: 3 }, dot: { dps: 8, d: 3 } }
+        ]
+      },
+      rapid: {
+        name: 'Horse Archer Stable',
+        baseCost: 90,
+        base: {
+          damage: 8,
+          range: 6,
+          cooldown: 0.4,
+          splash: 0,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // +4 damage, -0.1s cooldown
+          { cost: 60, damage: 4, cooldown: -0.1 },
+          // +2 range (faster targeting switch approximated as range increase)
+          { cost: 90, range: 2 },
+          // +6 damage, +15% crit chance (evasion debuff approximated as crit)
+          { cost: 120, damage: 6, crit: 0.15 }
+        ]
+      },
+      sniper: {
+        name: "Eorl's Lance Tower",
+        baseCost: 170,
+        base: {
+          damage: 90,
+          range: 11,
+          cooldown: 5,
+          splash: 0,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // +30 damage, pierce +1
+          { cost: 110, damage: 30, pierce: 1 },
+          // +3 range, -1s cooldown
+          { cost: 170, range: 3, cooldown: -1 },
+          // +50 damage, +20% boss damage (bonus)
+          { cost: 230, damage: 50, bonus: 0.2 }
+        ]
+      }
+      ,
+      // Anti-air tower for Rohan.  Shares the same stats as other factions
+      // but is named to fit the Rohirrim theme.
+      antiAir: {
+        name: 'Aerie Guard',
+        baseCost: 130,
+        base: {
+          damage: 15,
+          range: 8,
+          cooldown: 0.8,
+          splash: 0,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0,
+          bonusFlying: 1
+        },
+        upgrades: [
+          { cost: 80, damage: 5 },
+          { cost: 100, range: 2 },
+          { cost: 120, cooldown: -0.1, damage: 10 }
+        ]
+      }
+    },
+    Isengard: {
+      artillery: {
+        name: 'Explosive Forge',
+        baseCost: 160,
+        base: {
+          damage: 55,
+          range: 9,
+          cooldown: 5,
+          splash: 2,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 10, d: 2 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // +25 damage, +5/s DOT (extends dot)
+          { cost: 110, damage: 25, dot: { dps: 5, d: 0 } },
+          // +3 range, -0.5s cooldown
+          { cost: 160, range: 3, cooldown: -0.5 },
+          // +35 damage, explodes twice (pierce +1)
+          { cost: 210, damage: 35, pierce: 1 }
+        ]
+      },
+      slow: {
+        name: 'Pikeman Barricade',
+        baseCost: 130,
+        base: {
+          damage: 22,
+          // Reduced range for Isengard’s slow towers
+          range: 5,
+          cooldown: 1.5,
+          splash: 0,
+          slow: { p: 0.25, d: 5 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // +12 damage, +15% slow
+          { cost: 90, damage: 12, slow: { p: 0.15, d: 0 } },
+          // +1 range, adds root for 1s (stun)
+          { cost: 130, range: 1, stun: 1 },
+          // Slow stacks to 60% (+0.35) and adds 10% armor reduction (weakness 0.1 with 5s)
+          { cost: 170, slow: { p: 0.35, d: 0 }, weakness: { amp: 0.1, d: 5 } }
+        ]
+      },
+      rapid: {
+        name: 'Crossbow Battery',
+        baseCost: 110,
+        base: {
+          damage: 12,
+          range: 8,
+          cooldown: 0.6,
+          splash: 0,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // +6 damage, -0.1s cooldown
+          { cost: 80, damage: 6, cooldown: -0.1 },
+          // +1 range, adds poison 5/s for 2s
+          { cost: 110, range: 1, dot: { dps: 5, d: 2 } },
+          // -0.2s cooldown, +2 pierce
+          { cost: 140, cooldown: -0.2, pierce: 2 }
+        ]
+      },
+      sniper: {
+        name: 'Berserker Catapult',
+        baseCost: 190,
+        base: {
+          damage: 110,
+          range: 10,
+          cooldown: 4,
+          splash: 0,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // +50 damage, +10% crit
+          { cost: 130, damage: 50, crit: 0.1 },
+          // +2 range, -1s cooldown
+          { cost: 190, range: 2, cooldown: -1 },
+          // +70 damage, berserker rage: further -0.5s cooldown
+          { cost: 250, damage: 70, cooldown: -0.5 }
+        ]
+      }
+      ,
+      // Anti-air tower for Isengard.  Same mechanics as other factions.
+      antiAir: {
+        name: 'Aerie Guard',
+        baseCost: 130,
+        base: {
+          damage: 15,
+          range: 8,
+          cooldown: 0.8,
+          splash: 0,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0,
+          bonusFlying: 1
+        },
+        upgrades: [
+          { cost: 80, damage: 5 },
+          { cost: 100, range: 2 },
+          { cost: 120, cooldown: -0.1, damage: 10 }
+        ]
+      }
+    },
+    Mordor: {
+      artillery: {
+        name: 'Troll Catapult',
+        baseCost: 170,
+        base: {
+          damage: 60,
+          range: 9,
+          cooldown: 7,
+          splash: 2,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 1,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // +30 damage, +1s stun
+          { cost: 120, damage: 30, stun: 1 },
+          // +2 range, -2s cooldown
+          { cost: 170, range: 2, cooldown: -2 },
+          // +40 damage, adds fear (50% slow for 3s)
+          { cost: 220, damage: 40, fear: { p: 0.5, d: 3 } }
+        ]
+      },
+      slow: {
+        name: 'Wraith Shrine',
+        baseCost: 140,
+        base: {
+          damage: 15,
+          // Reduced range for Mordor’s slow towers
+          range: 5,
+          cooldown: 1.5,
+          splash: 0,
+          slow: { p: 0.4, d: 4 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // +10 damage, +10% slow
+          { cost: 100, damage: 10, slow: { p: 0.1, d: 0 } },
+          // +3 range, debuff spreads to nearby (splash 1)
+          { cost: 140, range: 3, splash: 1 },
+          // Slow to 60% (+0.2), adds weakness 20% for 5s
+          { cost: 180, slow: { p: 0.2, d: 0 }, weakness: { amp: 0.2, d: 5 } }
+        ]
+      },
+      rapid: {
+        name: 'Orc Archer Pit',
+        baseCost: 120,
+        base: {
+          damage: 9,
+          range: 7,
+          cooldown: 0.7,
+          splash: 0,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // +5 damage, adds poison 3/s for 3s
+          { cost: 90, damage: 5, dot: { dps: 3, d: 3 } },
+          // -0.2s cooldown, +1 pierce
+          { cost: 120, cooldown: -0.2, pierce: 1 },
+          // +7 damage, adds additional poison 3/s for 3s
+          { cost: 150, damage: 7, dot: { dps: 3, d: 3 } }
+        ]
+      },
+      sniper: {
+        name: 'Fell Beast Perch',
+        baseCost: 200,
+        base: {
+          damage: 120,
+          range: 13,
+          cooldown: 6,
+          splash: 0,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // +60 damage, fear debuff (50% slow for 2s)
+          { cost: 140, damage: 60, fear: { p: 0.5, d: 2 } },
+          // +4 range, -1s cooldown
+          { cost: 200, range: 4, cooldown: -1 },
+          // +80 damage, adds splash 1 and slow 30% for 3s (screech)
+          { cost: 260, damage: 80, splash: 1, slow: { p: 0.3, d: 3 } }
+        ]
+      }
+      ,
+      // Anti-air tower for Mordor.  Despite the dark arts, Mordor still
+      // requires a way to swat pesky flyers.  Shares stats with other
+      // anti-air towers.
+      antiAir: {
+        name: 'Aerie Guard',
+        baseCost: 130,
+        base: {
+          damage: 15,
+          range: 8,
+          cooldown: 0.8,
+          splash: 0,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0,
+          bonusFlying: 1
+        },
+        upgrades: [
+          { cost: 80, damage: 5 },
+          { cost: 100, range: 2 },
+          { cost: 120, cooldown: -0.1, damage: 10 }
+        ]
+      }
+    }
+    // hero definitions will be added below
+  };
 
-      // BFS for pathfinding
-      function findPath() {
-        const queue   = [];
-        const visited = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
-        const prev    = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-        queue.push({ row: spawn.row, col: spawn.col });
-        visited[spawn.row][spawn.col] = true;
-        const dirs = [ { row: 1, col: 0 }, { row: -1, col: 0 }, { row: 0, col: 1 }, { row: 0, col: -1 } ];
-        while (queue.length) {
-          const cur = queue.shift();
-          if (cur.row === goal.row && cur.col === goal.col) break;
-          for (const dir of dirs) {
-            const nr = cur.row + dir.row, nc = cur.col + dir.col;
-            if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS &&
-                !visited[nr][nc] && !blocked[nr][nc]) {
-              visited[nr][nc] = true;
-              prev[nr][nc]    = cur;
-              queue.push({ row: nr, col: nc });
-            }
+  // Define hero tower data for each faction.
+  // Heroes are powerful units that level up automatically based on kills.
+  // Each hero has a base cost, base stats and upgrades applied when kill thresholds are met.
+  const HERO_DATA = {
+    Gondor: {
+      hero: {
+        name: 'Gondor Hero',
+        baseCost: 250,
+        base: {
+          damage: 80,
+          range: 7,
+          cooldown: 1.0,
+          splash: 0,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        // kill thresholds for upgrades
+        thresholds: [10, 30, 60],
+        upgrades: [
+          // Level 2
+          { cost: 0, damage: 20, range: 1, aura: { dps: 3, range: 2 } },
+          // Level 3
+          { cost: 0, cooldown: -0.2, splash: 1 },
+          // Level 4
+          { cost: 0, damage: 30, range: 2, pierce: 1 }
+        ]
+      }
+    },
+    Rohan: {
+      hero: {
+        name: 'Rohan Hero',
+        baseCost: 230,
+        base: {
+          damage: 70,
+          range: 6,
+          cooldown: 1.2,
+          splash: 0,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 1,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        thresholds: [8, 25, 50],
+        upgrades: [
+          { cost: 0, damage: 15, knockback: 1 },
+          { cost: 0, cooldown: -0.2, aura: { dps: 4, range: 2 } },
+          { cost: 0, damage: 25, pierce: 1 }
+        ]
+      }
+    },
+    Isengard: {
+      hero: {
+        name: 'Isengard Hero',
+        baseCost: 260,
+        base: {
+          damage: 90,
+          range: 7,
+          cooldown: 1.2,
+          splash: 0,
+          slow: { p: 0.2, d: 2 },
+          dot: { dps: 5, d: 2 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        thresholds: [12, 35, 70],
+        upgrades: [
+          { cost: 0, damage: 20, dot: { dps: 5, d: 0 } },
+          { cost: 0, cooldown: -0.2, range: 1 },
+          { cost: 0, damage: 30, pierce: 1 }
+        ]
+      }
+    },
+    Mordor: {
+      hero: {
+        name: 'Mordor Hero',
+        baseCost: 280,
+        base: {
+          damage: 100,
+          range: 8,
+          cooldown: 1.5,
+          splash: 1,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0.4, d: 3 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        thresholds: [15, 40, 80],
+        upgrades: [
+          { cost: 0, damage: 30, fear: { p: 0.1, d: 0 } },
+          { cost: 0, cooldown: -0.3, range: 1 },
+          { cost: 0, damage: 50, splash: 1 }
+        ]
+      }
+    }
+  };
+
+  // Merge hero data into TOWER_DATA so hero appears as another type
+  Object.keys(HERO_DATA).forEach(factionKey => {
+    const heroDef = HERO_DATA[factionKey].hero;
+    if(!TOWER_DATA[factionKey]) TOWER_DATA[factionKey] = {};
+    TOWER_DATA[factionKey].hero = heroDef;
+  });
+
+  // Colour palette for factions to visually differentiate towers
+  const FACTION_COLORS = {
+    Gondor: '#6daedb',
+    Rohan:  '#76ba1b',
+    Isengard: '#7c3aed',
+    Mordor: '#d00000'
+  };
+
+  // Icons for each tower type to improve visual distinction. These emojis are used when drawing towers.
+  const TOWER_ICONS = {
+    artillery: '💥',
+    slow:      '❄️',
+    rapid:     '🏹',
+    sniper:    '🎯',
+    hero:      '🛡️'
+  };
+
+  // ===== Enhanced aesthetics additions =====
+  // Emoji representations for towers used instead of plain rectangles
+  const TOWER_EMOJIS_NEW = {
+    // Artillery towers now use a rocket symbol to reflect their small missile
+    // projectiles.  Slow towers are represented by a snowflake, rapid towers
+    // retain the archer motif, sniper towers use a target and heroes stay as
+    // wizard-like figures.  The new anti-air tower uses a balloon emoji to
+    // suggest it focuses on aerial threats.
+    artillery: '🚀',
+    slow:      '❄️',
+    rapid:     '🏹',
+    sniper:    '🎯',
+    hero:      '🧙',
+    antiAir:   '🎈'
+  };
+
+  // Custom hero icons per faction so each hero feels representative of their
+  // homeland.  Gondor’s hero wears a crown, Rohan’s bears a horse emblem,
+  // Isengard’s is a white wizard and Mordor’s channels the Eye of Sauron.
+  const HERO_EMOJIS = {
+    Gondor: '👑',    // Aragorn / kingly figure
+    Rohan:  '🐎',    // horse lord
+    Isengard:'🧙\u200d♂️', // white wizard (Saruman)
+    Mordor:'👁️'     // the Eye of Sauron
+  };
+
+  // Summon icons for hero abilities.  When a hero's special ability is
+  // activated, the corresponding creature will appear and run along the
+  // path dealing significant damage to the first enemy it hits.  Each
+  // civilisation calls upon a different ally.
+  const HERO_SUMMONS = {
+    Gondor: '🦅',   // giant eagle
+    Rohan:  '🐎',   // cavalry rider
+    Isengard:'🐺',   // warg
+    Mordor: '🐉'    // fell beast / dragon
+  };
+  // Icons for enemies (goblins, orcs, monsters) used to replace circles
+  // Orc-like enemy emojis for normal mobs
+  // Orc-like enemy emojis for normal mobs
+  //  The enemy mobs should resemble the marauding orc hordes of Middle‑earth.  To
+  //  that end we include a variety of monstrous visages rather than generic
+  //  smiley faces.  Feel free to add more fiendish characters here.
+  const ENEMY_EMOJIS = ['👹','🧌','👺','👿'];
+
+  // Boss emojis inspired by the sinister leaders of the Lord of the Rings
+  //  universe.  These icons hint at Nazgûl, Necromancers, wraiths and other
+  //  evil beings without pulling in any external assets.  When a boss spawns
+  //  the game randomly chooses one of these to represent the elite enemy.
+  const BOSS_EMOJIS = ['🦹\u200d♂️','🦹\u200d♀️','🧟','🧛','💀','🔥','👿','🧙\u200d♂️'];
+
+  // Emoji representations for flying enemies (eagles, bats, dragons, doves).  Flying
+  // enemies hover over the battlefield and cannot be attacked by some tower types.
+  const FLYING_EMOJIS = ['🦅','🦇','🐉','🕊️'];
+
+  // Faction bonuses to differentiate civilisations.  Each bonus applies to the
+  // player's currently selected faction and modifies gameplay accordingly.
+  // - goldMultiplier: multiplies the gold reward per kill
+  // - damageMultiplier: increases the damage output of that faction's towers
+  // - slowMultiplier: strengthens slow effects applied by that faction's towers
+  // - fearChance: probability to apply an additional fear slow on hit
+  const FACTION_BONUSES = {
+    Gondor:  { goldMultiplier: 1.1 },           // earns 10% more gold per kill
+    Rohan:   { damageMultiplier: 1.1 },         // towers deal 10% more damage
+    Isengard:{ slowMultiplier: 1.2 },           // slows last 20% longer/stronger
+    Mordor:  { fearChance: 0.1 }                // 10% chance to inflict fear slow
+  };
+  // Icons for decorative props (tents, stumps, rocks, barrels) scattered on the map
+  const DECOR_EMOJIS = ['🪨','🌳','🍄','⛺','🪵','🧱','🎋'];
+  // Explosion/hit effects displayed briefly when bullets hit enemies
+  const HIT_EMOJIS = ['💥','💢','✨','🔥'];
+  // Faction icons displayed in the HUD
+  const FACTION_EMOJIS = {
+    Gondor: '🦅',
+    Rohan:  '🐎',
+    Isengard:'🐺',
+    Mordor:'🐉'
+  };
+  // Pattern canvases used for grass, path and obstacles
+  const GRASS_SIZE = 64;
+  let patternGrass, patternPath, patternObstacle;
+  // Arrays to store decorative props and hit/explosion effects
+  let decorations = [];
+  let effects = [];
+
+  /**
+   * Generate natural-looking repeating patterns for grass, paths and obstacles.
+   * This function creates offscreen canvases and then registers their patterns
+   * on the main context. It should be called once after the canvas context
+   * (ctx) has been created.
+   */
+  function createPatterns(){
+    // Grass pattern: base green with speckled lighter/darker spots
+    const gCanvas = document.createElement('canvas');
+    gCanvas.width = GRASS_SIZE;
+    gCanvas.height = GRASS_SIZE;
+    const gctx = gCanvas.getContext('2d');
+    gctx.fillStyle = '#7aa95a';
+    gctx.fillRect(0,0,GRASS_SIZE,GRASS_SIZE);
+    for(let i=0;i<40;i++){
+      const x = Math.random() * GRASS_SIZE;
+      const y = Math.random() * GRASS_SIZE;
+      const r = Math.random() * 5 + 2;
+      gctx.fillStyle = Math.random() < 0.5 ? '#8bbf63' : '#698d44';
+      gctx.beginPath();
+      gctx.arc(x,y,r,0,Math.PI*2);
+      gctx.fill();
+    }
+    patternGrass = ctx.createPattern(gCanvas, 'repeat');
+    // Path pattern: earthy brown tones with subtle noise
+    const pCanvas = document.createElement('canvas');
+    pCanvas.width = GRASS_SIZE;
+    pCanvas.height = GRASS_SIZE;
+    const pctx = pCanvas.getContext('2d');
+    pctx.fillStyle = '#c0a16a';
+    pctx.fillRect(0,0,GRASS_SIZE,GRASS_SIZE);
+    for(let i=0;i<60;i++){
+      const x = Math.random() * GRASS_SIZE;
+      const y = Math.random() * GRASS_SIZE;
+      const w = Math.random() * 8 + 2;
+      const h = Math.random() * 4 + 1;
+      pctx.fillStyle = Math.random() < 0.5 ? '#b58c58' : '#d2b07d';
+      pctx.fillRect(x,y,w,h);
+    }
+    patternPath = ctx.createPattern(pCanvas, 'repeat');
+    // Obstacle pattern: stone/rock texture with varied gray shapes
+    const oCanvas = document.createElement('canvas');
+    oCanvas.width = GRASS_SIZE;
+    oCanvas.height = GRASS_SIZE;
+    const octx = oCanvas.getContext('2d');
+    octx.fillStyle = '#bfc4c9';
+    octx.fillRect(0,0,GRASS_SIZE,GRASS_SIZE);
+    for(let i=0;i<50;i++){
+      const x = Math.random() * GRASS_SIZE;
+      const y = Math.random() * GRASS_SIZE;
+      const r = Math.random() * 6 + 3;
+      octx.fillStyle = Math.random() < 0.5 ? '#a7acb0' : '#d0d3d6';
+      octx.beginPath();
+      octx.arc(x,y,r,0,Math.PI*2);
+      octx.fill();
+    }
+    patternObstacle = ctx.createPattern(oCanvas, 'repeat');
+  }
+
+  /**
+   * Generate a stylized forest canopy as a base64 data URL and set it as the
+   * page background. This enriches the scene with a lush backdrop.
+   */
+  function setForestBackground(){
+    const size = 256;
+    const c = document.createElement('canvas');
+    c.width = size;
+    c.height = size;
+    const cctx = c.getContext('2d');
+    cctx.fillStyle = '#446c3c';
+    cctx.fillRect(0,0,size,size);
+    // draw overlapping dark green canopy circles
+    for(let i=0;i<80;i++){
+      const x = Math.random() * size;
+      const y = Math.random() * size;
+      const r = Math.random() * 40 + 20;
+      cctx.fillStyle = Math.random() < 0.5 ? '#335b2c' : '#557f42';
+      cctx.globalAlpha = 0.7 + Math.random()*0.3;
+      cctx.beginPath();
+      cctx.arc(x,y,r,0,Math.PI*2);
+      cctx.fill();
+    }
+    cctx.globalAlpha = 1;
+    const url = c.toDataURL();
+    document.body.style.backgroundImage = `url(${url})`;
+    document.body.style.backgroundRepeat = 'repeat';
+    document.body.style.backgroundSize = 'cover';
+  }
+
+  /**
+   * Populate the decorations array with non-blocking props (logs, rocks, tents, etc.)
+   * scattered randomly on grass squares. It should be invoked whenever the map
+   * template is loaded or changed.
+   */
+  function generateDecorations(){
+    decorations = [];
+    // Determine the current valid path cells so props don't spawn on the path
+    const p = findPath();
+    const pathSet = new Set();
+    if(p) p.forEach(cell => { pathSet.add(`${cell.row}-${cell.col}`); });
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
+        if(obstacles[r][c]) continue;
+        // avoid spawn and goal
+        if((c === spawn.col && r === spawn.row) || (c === goal.col && r === goal.row)) continue;
+        if(pathSet.has(`${r}-${c}`)) continue;
+        if(Math.random() < 0.12){
+          const emoji = DECOR_EMOJIS[Math.floor(Math.random() * DECOR_EMOJIS.length)];
+          decorations.push({row:r, col:c, emoji});
+        }
+      }
+    }
+  }
+
+  /**
+   * Update the explosion/hit effects by advancing their age and removing those
+   * whose lifetime has expired. Called each frame from the update loop.
+   */
+  function updateEffects(dt){
+    for(let i=effects.length-1; i>=0; i--){
+      const eff = effects[i];
+      eff.age += dt;
+      if(eff.age >= eff.life){
+        effects.splice(i,1);
+      }
+    }
+  }
+
+  /**
+   * Update the on-screen scoreboard to reflect current and best scores.
+   */
+  function updateScoreBoard(){
+    const scoreEl = document.getElementById('score');
+    if(scoreEl){
+      scoreEl.textContent = `Score: ${score} | Best: ${highScore}`;
+    }
+  }
+
+  // Helpers for 2D array
+  function make2D(val){ return Array.from({length:ROWS},()=>Array(COLS).fill(val)); }
+
+  /**
+   * Reset core game state back to its starting values.  This function
+   * reinstates resources, lives, wave counters and clears all
+   * towers, enemies, projectiles and summons.  It is invoked when
+   * changing maps so that the player starts each new template on an
+   * even footing rather than continuing from a lost game.  Calling
+   * resetGame() does not set up a new interval or duplicate event
+   * listeners; it simply reinitialises variables and refreshes the UI.
+   */
+  function resetGame(){
+    // Starting economy and base difficulty
+    gold = 200;
+    lives = 20;
+    wave = 1;
+    score = 0;
+    enemyHP = 5;
+    spawnMs = 2000;
+    spawnTimer = 0;
+    // Clear all game objects
+    towers = [];
+    enemies = [];
+    bullets = [];
+    summons = [];
+    // Cancel any hero move state
+    heroToMove = null;
+    movingHeroMode = false;
+    // Update the HUD to reflect the reset state
+    ui();
+  }
+
+  // Compute blocked map from obstacles and towers
+  function recomputeBlocked(){
+    blocked = make2D(false);
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
+        blocked[r][c] = obstacles[r][c];
+      }
+    }
+    towers.forEach(t => {
+      blocked[t.row][t.col] = true;
+    });
+    // ensure spawn and goal are free
+    blocked[spawn.row][spawn.col] = false;
+    blocked[goal.row][goal.col] = false;
+  }
+
+  // BFS pathfinding
+  function findPath(from=spawn,to=goal){
+    const Q=[];
+    const seen = make2D(false);
+    const prev = make2D(null);
+    Q.push({row:from.row, col:from.col});
+    seen[from.row][from.col] = true;
+    const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+    while(Q.length){
+      const cur = Q.shift();
+      if(cur.row===to.row && cur.col===to.col) break;
+      for(const [dr,dc] of dirs){
+        const nr=cur.row+dr, nc=cur.col+dc;
+        if(nr<0||nr>=ROWS||nc<0||nc>=COLS) continue;
+        if(seen[nr][nc] || blocked[nr][nc]) continue;
+        seen[nr][nc] = true;
+        prev[nr][nc] = cur;
+        Q.push({row:nr,col:nc});
+      }
+    }
+    if(!seen[to.row][to.col]) return null;
+    const path=[];
+    let cur={row:to.row,col:to.col};
+    while(!(cur.row===from.row && cur.col===from.col)){
+      path.push(cur);
+      cur = prev[cur.row][cur.col];
+    }
+    path.push(from);
+    path.reverse();
+    return path;
+  }
+
+  // Convert cell to pixel center
+  function toPix(c,r){ return {x: c*tile + tile/2, y: r*tile + tile/2}; }
+
+  // Enemy spawn
+  function spawnEnemy(){
+    const path = findPath();
+    if(!path) return;
+    const start = toPix(spawn.col, spawn.row);
+    enemies.push({
+      x: start.x,
+      y: start.y,
+      maxSpeed: 1.0 + wave * 0.1,
+      hp: enemyHP,
+      path,
+      idx: 1,
+      slowEffects: [],       // array of {p,d} slows
+      dotEffects: [],        // array of {dps,d}
+      weaknessEffects: [],   // array of {amp,d}
+      stunDur: 0,            // stun duration remaining
+      // Choose a random emoji to visually represent this enemy
+      icon: ENEMY_EMOJIS[Math.floor(Math.random() * ENEMY_EMOJIS.length)]
+    });
+  }
+
+  /**
+   * Spawn a flying enemy that travels over the battlefield.  Flying enemies
+   * have less health than ground units and move faster.  They are marked
+   * with isFlying so towers that cannot hit flyers will ignore them.
+   */
+  function spawnFlyingEnemy(){
+    const path = findPath();
+    if(!path) return;
+    const start = toPix(spawn.col, spawn.row);
+    enemies.push({
+      x: start.x,
+      y: start.y,
+      maxSpeed: 1.2 + wave * 0.2,
+      // Flying enemies are more fragile than ground enemies
+      hp: Math.max(1, enemyHP * 0.5),
+      path,
+      idx: 1,
+      slowEffects: [],
+      dotEffects: [],
+      weaknessEffects: [],
+      stunDur: 0,
+      isFlying: true,
+      // Choose a flying icon
+      icon: FLYING_EMOJIS[Math.floor(Math.random() * FLYING_EMOJIS.length)]
+    });
+  }
+
+  /**
+   * Spawn an elite boss enemy at the starting position. Bosses move slower,
+   * have substantially more health and award extra gold and score when defeated.
+   */
+  function spawnBoss(){
+    const path = findPath();
+    if(!path) return;
+    const start = toPix(spawn.col, spawn.row);
+    enemies.push({
+      x: start.x,
+      y: start.y,
+      // Bosses are slower than regular mobs
+      maxSpeed: 0.6 + wave * 0.05,
+      // Boss HP scales with wave and base enemy HP
+      hp: enemyHP * 3,
+      path,
+      idx: 1,
+      slowEffects: [],
+      dotEffects: [],
+      weaknessEffects: [],
+      stunDur: 0,
+      isBoss: true,
+      // Boss icon from sinister emoji list
+      icon: BOSS_EMOJIS[Math.floor(Math.random() * BOSS_EMOJIS.length)]
+    });
+  }
+
+  /**
+   * Summon a friendly creature from a hero.  This creature travels along
+   * the path from the hero’s location toward the goal.  It deals a fixed
+   * amount of damage to the first enemy it encounters and then vanishes.
+   * The summon inherits the hero’s faction so that civilisation bonuses
+   * apply when it deals damage.
+   */
+  function spawnSummon(hero){
+    // Compute a path from the hero’s current position to the goal.  If no
+    // path exists (should never happen), abort the summon.
+    const path = findPath({ row: hero.row, col: hero.col }, goal);
+    if(!path) return;
+    const start = toPix(hero.col, hero.row);
+    // Damage is based on the hero’s own damage stat multiplied to feel
+    // impactful.  Speed is measured in tiles per second; summons travel
+    // faster than normal enemies so they can catch up to flyers.
+    const dmg = (hero.attrs && hero.attrs.damage ? hero.attrs.damage : 20) * 2;
+    summons.push({
+      x: start.x,
+      y: start.y,
+      path,
+      idx: 1,
+      speed: 3,
+      damage: dmg,
+      icon: HERO_SUMMONS[hero.faction] || '🦅',
+      ownerHero: hero
+    });
+  }
+
+  // Reroute enemy when path changes
+  function rerouteEnemy(e){
+    const col = Math.max(0, Math.min(COLS-1, Math.round(e.x/tile - 0.5)));
+    const row = Math.max(0, Math.min(ROWS-1, Math.round(e.y/tile - 0.5)));
+    const newPath = findPath({row, col}, goal);
+    if(newPath){
+      e.path = newPath;
+      e.idx = 1;
+    }
+  }
+
+  // Create tower object
+  function createTowerObject(col,row){
+    const faction = factionSel.value;
+    const type = towerSel.value;
+    const data = TOWER_DATA[faction][type];
+    const attrs = JSON.parse(JSON.stringify(data.base)); // deep copy base attrs
+    const towerObj = {
+      faction,
+      type,
+      name: data.name,
+      col,
+      row,
+      lvl: 1,
+      upgradeIndex: 0,
+      attrs,
+      costSpent: data.baseCost
+    };
+    // Initialize hero-specific properties
+    if(type === 'hero'){
+      towerObj.isHero = true;
+      towerObj.heroKills = 0;
+      // Copy kill thresholds from data.thresholds
+      towerObj.heroThresholds = Array.isArray(data.thresholds) ? data.thresholds.slice() : [];
+      // Heroes can summon companions once per wave
+      towerObj.summonAvailable = true;
+    }
+
+    // Determine which enemy types this tower can attack.  Rapid, sniper and
+    // hero towers hit both ground and air by default.  Anti-air towers
+    // exclusively target flying enemies, while artillery and slow towers
+    // attack only ground units.
+    if(type === 'antiAir'){
+      towerObj.canHitFlying = true;
+      towerObj.onlyHitFlying = true;
+    } else {
+      towerObj.canHitFlying = (type === 'rapid' || type === 'sniper' || type === 'hero');
+      towerObj.onlyHitFlying = false;
+    }
+    return towerObj;
+  }
+
+  // Check if we can place tower
+  function canPlace(col,row){
+    if(col===spawn.col && row===spawn.row) return false;
+    if(col===goal.col && row===goal.row) return false;
+    if(blocked[row][col]) return false;
+    blocked[row][col] = true;
+    const ok = !!findPath();
+    blocked[row][col] = false;
+    return ok;
+  }
+
+  // Place tower on grid
+  function place(col,row){
+    const faction = factionSel.value;
+    const type = towerSel.value;
+    const data = TOWER_DATA[faction][type];
+    const cost = data.baseCost;
+    // Restrict to one hero at a time
+    if(type === 'hero' && towers.some(t => t.type === 'hero')){
+      msg('Only one hero may be active at a time.');
+      return false;
+    }
+    if(gold < cost){ msg('Not enough gold.'); return false; }
+    if(!canPlace(col,row)){ msg('Invalid placement (blocks path).'); return false; }
+    const tower = createTowerObject(col,row);
+    towers.push(tower);
+    gold -= cost;
+    recomputeBlocked();
+    ui();
+    // Update hero info if a hero was placed
+    updateHeroInfo();
+    msg('');
+    return true;
+  }
+
+  // Sell tower
+  function sell(col,row){
+    const idx = towers.findIndex(t => t.col === col && t.row === row);
+    if(idx>=0){
+      const t = towers[idx];
+      const refund = Math.round(t.costSpent * 0.6);
+      gold += refund;
+      towers.splice(idx,1);
+      recomputeBlocked();
+      enemies.forEach(e => rerouteEnemy(e));
+      ui();
+      // Update hero info after selling a tower (may remove hero)
+      updateHeroInfo();
+      msg(`Sold for ${refund}.`);
+    }
+  }
+
+  // Upgrade tower
+  function upgradeTower(tower){
+    const data = TOWER_DATA[tower.faction][tower.type];
+    if(tower.upgradeIndex >= data.upgrades.length){ msg('Max level.'); return; }
+    const upgrade = data.upgrades[tower.upgradeIndex];
+    if(gold < upgrade.cost){ msg('Not enough gold.'); return; }
+    gold -= upgrade.cost;
+    tower.costSpent += upgrade.cost;
+    tower.lvl++;
+    tower.upgradeIndex++;
+    // Apply modifications
+    if(upgrade.damage)    tower.attrs.damage += upgrade.damage;
+    if(upgrade.range)     tower.attrs.range += upgrade.range;
+    if(upgrade.cooldown)  tower.attrs.cooldown = Math.max(0.1, tower.attrs.cooldown + upgrade.cooldown);
+    if(upgrade.splash)    tower.attrs.splash += upgrade.splash;
+    if(upgrade.pierce)    tower.attrs.pierce += upgrade.pierce;
+    if(upgrade.crit)      tower.attrs.crit += upgrade.crit;
+    if(upgrade.slow){
+      const uSlow = upgrade.slow;
+      tower.attrs.slow.p += (uSlow.p || 0);
+      tower.attrs.slow.d += (uSlow.d || 0);
+    }
+    if(upgrade.dot){
+      const uDot = upgrade.dot;
+      tower.attrs.dot.dps += (uDot.dps || 0);
+      tower.attrs.dot.d  += (uDot.d  || 0);
+    }
+    if(upgrade.stun){
+      tower.attrs.stun += upgrade.stun;
+    }
+    if(upgrade.knockback){
+      tower.attrs.knockback += upgrade.knockback;
+    }
+    if(upgrade.fear){
+      const f = upgrade.fear;
+      tower.attrs.fear.p += (f.p || 0);
+      tower.attrs.fear.d = Math.max(tower.attrs.fear.d, f.d || 0);
+    }
+    if(upgrade.aura){
+      const a = upgrade.aura;
+      tower.attrs.aura.dps += (a.dps || 0);
+      // For aura range, take the larger value (so range upgrades override)
+      tower.attrs.aura.range = Math.max(tower.attrs.aura.range, a.range || 0);
+    }
+    if(upgrade.weakness){
+      const w = upgrade.weakness;
+      tower.attrs.weakness.amp += (w.amp || 0);
+      tower.attrs.weakness.d = Math.max(tower.attrs.weakness.d, w.d || 0);
+    }
+    if(upgrade.bonus){
+      tower.attrs.bonus += upgrade.bonus;
+    }
+    ui();
+    msg(`Upgraded to L${tower.lvl}.`);
+  }
+
+  /**
+   * Register a kill for the tower that delivered the finishing blow.
+   * If the tower is a hero, increment kill count and check for level-up.
+   */
+  function registerKill(tower){
+    if(tower.isHero){
+      tower.heroKills = (tower.heroKills || 0) + 1;
+      heroLevelUp(tower);
+      // update hero info display after registering a kill
+      updateHeroInfo();
+    }
+  }
+
+  /**
+   * Check if a hero has enough kills to level up. Heroes level up automatically
+   * when their kill count meets or exceeds the next threshold.
+   */
+  function heroLevelUp(tower){
+    if(!tower.isHero) return;
+    const idx = tower.upgradeIndex;
+    const thresholds = tower.heroThresholds || [];
+    if(idx < thresholds.length && tower.heroKills >= thresholds[idx]){
+      // Perform a hero upgrade (cost is zero)
+      upgradeTower(tower);
+      // Recursively check in case kills exceed multiple thresholds
+      heroLevelUp(tower);
+      // Update hero info after level-up
+      updateHeroInfo();
+    }
+  }
+
+  // Update UI
+  function ui(){
+    goldEl.textContent = `Gold: ${gold}`;
+    livesEl.textContent= `Lives: ${lives}`;
+    waveEl.textContent = `Wave: ${wave}`;
+    updatePlaceButton();
+    updateHeroInfo();
+    // Update displayed faction icon in the HUD
+    const iconEl = document.getElementById('factionIcon');
+    if(iconEl) iconEl.textContent = FACTION_EMOJIS[factionSel.value] || '';
+    // Update scoreboard display
+    updateScoreBoard();
+  }
+
+  // Display hero information (level and kills). Called whenever hero state changes.
+  function updateHeroInfo(){
+    const infoEl = document.getElementById('heroInfo');
+    const heroTower = towers.find(t => t.isHero);
+    if(heroTower){
+      const lvl = heroTower.lvl || 1;
+      const kills = heroTower.heroKills || 0;
+      infoEl.textContent = `Hero – Level ${lvl} | Kills ${kills}`;
+    } else {
+      infoEl.textContent = '';
+    }
+  }
+
+  // Effects update for enemies
+  function updateEnemyEffects(e, dt){
+    // Decrement stun duration
+    if(e.stunDur && e.stunDur > 0){
+      e.stunDur -= dt;
+      if(e.stunDur < 0) e.stunDur = 0;
+    }
+    // Slow effects (including fear)
+    let maxSlow = 0;
+    for(let i=e.slowEffects.length-1;i>=0;i--){
+      const s = e.slowEffects[i];
+      s.d -= dt;
+      if(s.d <= 0){ e.slowEffects.splice(i,1); continue; }
+      if(s.p > maxSlow) maxSlow = s.p;
+    }
+    // Dot effects
+    let totalDps = 0;
+    for(let i=e.dotEffects.length-1;i>=0;i--){
+      const d = e.dotEffects[i];
+      d.d -= dt;
+      if(d.d <= 0){ e.dotEffects.splice(i,1); continue; }
+      totalDps += d.dps;
+    }
+    // Apply DOT damage
+    if(totalDps > 0){
+      e.hp -= totalDps * dt;
+    }
+    // Weakness effects (damage amplification)
+    let totalWeak = 0;
+    if(e.weaknessEffects){
+      for(let i=e.weaknessEffects.length-1;i>=0;i--){
+        const w = e.weaknessEffects[i];
+        w.d -= dt;
+        if(w.d <= 0){ e.weaknessEffects.splice(i,1); continue; }
+        totalWeak += w.amp;
+      }
+    }
+    // Store current weakness on enemy for quick access
+    e.currentWeakness = totalWeak;
+    // Return current slow percentage and stun status
+    return maxSlow;
+  }
+
+  // Update enemies
+  function updateEnemies(dt){
+    for(let i=enemies.length-1;i>=0;i--){
+      const e = enemies[i];
+      const slowPct = updateEnemyEffects(e, dt);
+      // If stunned, speed is zero
+      const speed = (e.stunDur && e.stunDur > 0) ? 0 : e.maxSpeed * (1 - slowPct);
+      // Move along path
+      if(!e.path || e.idx >= e.path.length){
+        enemies.splice(i,1);
+        lives--;
+        ui();
+        if(lives <= 0) msg('Game Over! Refresh to restart.');
+        continue;
+      }
+      const tgtCell = e.path[e.idx];
+      const tgtPos = toPix(tgtCell.col, tgtCell.row);
+      const dx = tgtPos.x - e.x;
+      const dy = tgtPos.y - e.y;
+      const dist = Math.hypot(dx, dy);
+      const step = speed * dt * tile;
+      if(dist <= step){
+        e.x = tgtPos.x;
+        e.y = tgtPos.y;
+        e.idx++;
+        if(e.idx >= e.path.length){
+          enemies.splice(i,1);
+          lives--;
+          ui();
+          if(lives <= 0) msg('Game Over! Refresh to restart.');
+          continue;
+        }
+      } else {
+        e.x += dx / dist * step;
+        e.y += dy / dist * step;
+      }
+      if(e.hp <= 0){
+        enemies.splice(i,1);
+        // Award gold and score based on enemy type
+        const reward = e.isBoss ? 50 : 10;
+        const pts    = e.isBoss ? 5 : 1;
+        // Apply civilisation bonus to gold reward.  The player's currently
+        // selected faction modifies how much gold is gained per kill.
+        const fBonus = FACTION_BONUSES[factionSel.value] || {};
+        const goldMult = fBonus.goldMultiplier || 1;
+        gold += reward * goldMult;
+        score += pts;
+        // Update persistent high score if beaten
+        if(score > highScore){
+          highScore = score;
+          try {
+            localStorage.setItem('maulHighScore', String(highScore));
+          } catch(err) {
+            // ignore storage errors (e.g. private mode)
           }
         }
-        if (!visited[goal.row][goal.col]) return null;
-        const path = [];
-        let cell = { row: goal.row, col: goal.col };
-        while (!(cell.row === spawn.row && cell.col === spawn.col)) {
-          path.push(cell);
-          cell = prev[cell.row][cell.col];
-        }
-        path.push({ row: spawn.row, col: spawn.col });
-        path.reverse();
-        return path;
+        updateScoreBoard();
+        ui();
       }
+    }
+  }
 
-      // Create tower with faction stats
-      function createTower(col, row) {
-        const cfg = FACTIONS[currentFaction];
-        return {
-          col,
-          row,
-          level: 1,
-          range: cfg.range,
-          cooldown: 0,
-          fireRate: cfg.fireRate,
-          baseDamage: cfg.baseDamage
-        };
+  // Update towers: shooting and bullets
+  function updateTowers(dt){
+    // Iterate over towers for shooting
+    towers.forEach(t => {
+      if(!t.cd) t.cd = 0;
+      t.cd -= dt;
+      if(t.cd <= 0){
+        shoot(t);
       }
-
-      // Place tower and ensure path remains
-      function placeTower(col, row) {
-        if ((col === spawn.col && row === spawn.row) || (col === goal.col && row === goal.row)) {
-          msgEl.textContent = 'Cannot build on spawn or goal.';
-          return false;
-        }
-        if (blocked[row][col]) {
-          msgEl.textContent = 'Tile already occupied.';
-          return false;
-        }
-        blocked[row][col] = true;
-        const newPath = findPath();
-        if (!newPath) {
-          blocked[row][col] = false;
-          msgEl.textContent = 'That tower would block the path! Choose another spot.';
-          return false;
-        }
-        towers.push(createTower(col, row));
-        money -= TOWER_COST;
-        updateUI();
-        msgEl.textContent = '';
-        return true;
-      }
-
-      // Create enemy and compute its path
-      function createEnemy() {
-        const path = findPath();
-        if (!path) return null;
-        const start = toPixel(spawn.col, spawn.row);
-        return {
-          x: start.x,
-          y: start.y,
-          speed: 1.0 + wave * 0.1,
-          hp: enemyHP,
-          path,
-          targetIndex: 1
-        };
-      }
-
-      function updateUI() {
-        moneyEl.textContent = `Gold: ${money}`;
-        livesEl.textContent = `Lives: ${lives}`;
-        waveEl.textContent  = `Wave: ${wave}`;
-      }
-
-      // Spawn enemies over time
-      function maybeSpawnEnemy(dt) {
-        spawnTimer += dt;
-        if (spawnTimer > spawnInterval) {
-          spawnTimer -= spawnInterval;
-          const enemy = createEnemy();
-          if (enemy) enemies.push(enemy);
-        }
-      }
-
-      // Move enemies and handle goal/hits
-      function updateEnemies(dt) {
-        for (let i = enemies.length - 1; i >= 0; i--) {
-          const e = enemies[i];
-          if (!e.path || e.targetIndex >= e.path.length) {
-            enemies.splice(i, 1);
-            lives--;
-            updateUI();
-            if (lives <= 0) gameOver('Enemies broke through!');
-            continue;
-          }
-          const targetCell = e.path[e.targetIndex];
-          const tgt = toPixel(targetCell.col, targetCell.row);
-          const dx = tgt.x - e.x, dy = tgt.y - e.y;
+    });
+    // Apply aura damage continuously
+    towers.forEach(t => {
+      const aura = t.attrs && t.attrs.aura;
+      if(aura && aura.dps > 0){
+        enemies.forEach(e => {
+          const dx = (e.x - (t.col + 0.5) * tile) / tile;
+          const dy = (e.y - (t.row + 0.5) * tile) / tile;
           const dist = Math.hypot(dx, dy);
-          const moveDist = e.speed * dt * tileSize;
-          if (dist <= moveDist) {
-            e.x = tgt.x;
-            e.y = tgt.y;
-            e.targetIndex++;
-            if (e.targetIndex >= e.path.length) {
-              enemies.splice(i, 1);
-              lives--;
-              updateUI();
-              if (lives <= 0) gameOver('Enemies broke through!');
-              continue;
-            }
-          } else {
-            e.x += (dx / dist) * moveDist;
-            e.y += (dy / dist) * moveDist;
+          if(dist <= aura.range){
+            e.hp -= aura.dps * dt;
           }
-          if (e.hp <= 0) {
-            enemies.splice(i, 1);
-            money += 10;
-            updateUI();
-          }
-        }
+        });
       }
+    });
+  }
 
-      // Towers shoot the nearest enemy in range
-      function updateTowers(dt) {
-        towers.forEach(tower => {
-          tower.cooldown -= dt;
-          if (tower.cooldown <= 0) {
-            let nearest = null, nearestDist = Infinity;
-            enemies.forEach(enemy => {
-              const dx = (enemy.x - (tower.col + 0.5) * tileSize) / tileSize;
-              const dy = (enemy.y - (tower.row + 0.5) * tileSize) / tileSize;
-              const dist = Math.hypot(dx, dy);
-              if (dist < tower.range && dist < nearestDist) {
-                nearest = enemy;
-                nearestDist = dist;
-              }
+  // Shoot function for towers
+  function shoot(tower){
+    // Destructure all potential attributes from tower
+    const {
+      damage,
+      range,
+      cooldown,
+      splash,
+      slow,
+      dot,
+      pierce,
+      crit,
+      stun,
+      knockback,
+      fear,
+      aura,
+      weakness,
+      bonus
+    } = tower.attrs;
+
+    // Look up civilisation bonuses for this tower's faction.  Damage and
+    // slow multipliers adjust base damage and status effect duration.  Fear
+    // chance gives a probability of applying an additional slow effect.
+    const fBonus = FACTION_BONUSES[tower.faction] || {};
+    const dmgMult   = fBonus.damageMultiplier || 1;
+    const slowMult  = fBonus.slowMultiplier || 1;
+    const fearChance= fBonus.fearChance || 0;
+    const maxTargets = 1 + (pierce || 0);
+    // find up to maxTargets enemies within range
+    const targets = [];
+    enemies.forEach(e => {
+      // Skip ground enemies if this tower exclusively targets air units
+      if(!e.isFlying && tower.onlyHitFlying) return;
+      // Skip flying enemies if this tower cannot attack them
+      if(e.isFlying && !tower.canHitFlying) return;
+      const dx = (e.x - (tower.col + 0.5) * tile) / tile;
+      const dy = (e.y - (tower.row + 0.5) * tile) / tile;
+      const d = Math.hypot(dx, dy);
+      if(d <= range) targets.push({enemy: e, dist: d});
+    });
+    targets.sort((a,b) => a.dist - b.dist);
+    const shots = targets.slice(0, maxTargets);
+    if(shots.length === 0){
+      tower.cd = cooldown;
+      return;
+    }
+    // Primary target for bullet line
+    const primary = shots[0].enemy;
+    // Artillery towers fire slower projectiles, represented by a longer life on the
+    // bullet animation.  Store the tower type on the bullet so we can render
+    // rockets differently in draw().
+    const bulletLife = (tower.type === 'artillery') ? 0.5 : 0.15;
+    bullets.push({
+      x1: (tower.col + 0.5) * tile,
+      y1: (tower.row + 0.5) * tile,
+      x2: primary.x,
+      y2: primary.y,
+      t: bulletLife,
+      type: tower.type
+    });
+    shots.forEach(({enemy}) => {
+      // Determine if this shot crits (apply once per shot)
+      const critFactor = (crit && Math.random() < crit) ? 2 : 1;
+      // Base damage adjusted for tower bonus
+      const baseDmg = damage * (1 + (bonus || 0));
+      if(splash && splash > 0){
+        // AoE: apply to all enemies within splash radius of the primary target
+        enemies.forEach(e2 => {
+          const dx2 = (e2.x - enemy.x) / tile;
+          const dy2 = (e2.y - enemy.y) / tile;
+          const dd = Math.hypot(dx2, dy2);
+          if(dd <= splash){
+            // Final damage incorporates enemy weakness, crit and civilisation bonus.
+            // Anti-air towers gain a damage multiplier against flying enemies via
+            // the bonusFlying attribute stored on their base stats.
+            const flyingMult = (tower.attrs && tower.attrs.bonusFlying && e2.isFlying) ? (1 + tower.attrs.bonusFlying) : 1;
+            const finalDmg = baseDmg * (1 + (e2.currentWeakness || 0)) * critFactor * dmgMult * flyingMult;
+            e2.hp -= finalDmg;
+            // If the enemy dies, credit a kill to this tower
+            if(e2.hp <= 0){
+              registerKill(tower);
+            }
+            // Apply status effects.  Slow duration and potency scale with civilisation bonus.
+            if(slow && slow.p>0){
+              e2.slowEffects.push({p: slow.p * slowMult, d: slow.d * slowMult});
+            }
+            if(dot && dot.dps>0){
+              e2.dotEffects.push({dps: dot.dps, d: dot.d});
+            }
+            if(weakness && weakness.amp>0){
+              e2.weaknessEffects.push({amp: weakness.amp, d: weakness.d});
+            }
+            if(stun && stun>0){
+              e2.stunDur = Math.max(e2.stunDur || 0, stun);
+            }
+            if(fear && fear.p>0){
+              e2.slowEffects.push({p: fear.p, d: fear.d});
+            }
+            if(knockback && knockback>0){
+              applyKnockback(e2, knockback);
+            }
+            // Additional fear effect from civilisation bonus
+            if(fearChance > 0 && Math.random() < fearChance){
+              e2.slowEffects.push({p: 0.4, d: 3});
+            }
+            // Trigger a short-lived visual effect at the hit location
+            effects.push({
+              x: e2.x,
+              y: e2.y,
+              text: HIT_EMOJIS[Math.floor(Math.random() * HIT_EMOJIS.length)],
+              age: 0,
+              life: 0.5
             });
-            if (nearest) {
-              const damage = tower.baseDamage * tower.level;
-              nearest.hp -= damage;
-              bullets.push({
-                from: { x: (tower.col + 0.5) * tileSize, y: (tower.row + 0.5) * tileSize },
-                to:   { x: nearest.x, y: nearest.y },
-                timer: 0.15
-              });
-              tower.cooldown = 1 / (tower.fireRate * tower.level);
-            }
           }
         });
-      }
-
-      function updateBullets(dt) {
-        for (let i = bullets.length - 1; i >= 0; i--) {
-          bullets[i].timer -= dt;
-          if (bullets[i].timer <= 0) bullets.splice(i, 1);
+      } else {
+        // Single target hit
+        // Apply bonusFlying multiplier for anti-air towers when hitting flyers
+        const flyingMultSingle = (tower.attrs && tower.attrs.bonusFlying && enemy.isFlying) ? (1 + tower.attrs.bonusFlying) : 1;
+        const finalDmg = baseDmg * (1 + (enemy.currentWeakness || 0)) * critFactor * dmgMult * flyingMultSingle;
+        enemy.hp -= finalDmg;
+        // Register kill credit if enemy dies
+        if(enemy.hp <= 0){
+          registerKill(tower);
         }
-      }
-
-      // Draw everything
-      function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        // Grid
-        ctx.strokeStyle = '#ccc';
-        for (let c = 0; c <= COLS; c++) {
-          ctx.beginPath();
-          ctx.moveTo(c * tileSize, 0);
-          ctx.lineTo(c * tileSize, canvas.height);
-          ctx.stroke();
+        // Apply effects to the primary target.  Slow effects scale with faction bonus.
+        if(slow && slow.p>0){
+          enemy.slowEffects.push({p: slow.p * slowMult, d: slow.d * slowMult});
         }
-        for (let r = 0; r <= ROWS; r++) {
-          ctx.beginPath();
-          ctx.moveTo(0, r * tileSize);
-          ctx.lineTo(canvas.width, r * tileSize);
-          ctx.stroke();
+        if(dot && dot.dps>0){
+          enemy.dotEffects.push({dps: dot.dps, d: dot.d});
         }
-        // Spawn & goal highlight
-        ctx.fillStyle = COLORS.spawn;
-        ctx.fillRect(spawn.col * tileSize, spawn.row * tileSize, tileSize, tileSize);
-        ctx.fillStyle = COLORS.goal;
-        ctx.fillRect(goal.col * tileSize, goal.row * tileSize, tileSize, tileSize);
-        // Towers
-        towers.forEach(tower => {
-          ctx.fillStyle = 'var(--tower)';
-          ctx.fillRect(tower.col * tileSize + 4, tower.row * tileSize + 4, tileSize - 8, tileSize - 8);
-          ctx.fillStyle = '#333';
-          ctx.font = `${tileSize * 0.4}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(tower.level, tower.col * tileSize + tileSize / 2, tower.row * tileSize + tileSize / 2);
-        });
-        // Enemies
-        enemies.forEach(enemy => {
-          const size = tileSize * 0.6;
-          ctx.fillStyle = 'var(--enemy)';
-          ctx.beginPath();
-          ctx.arc(enemy.x, enemy.y, size / 2, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = '#000';
-          ctx.fillRect(enemy.x - size / 2, enemy.y - size / 2 - 6, size, 4);
-          ctx.fillStyle = '#00b300';
-          const hpWidth = (enemy.hp / enemyHP) * size;
-          ctx.fillRect(enemy.x - size / 2, enemy.y - size / 2 - 6, hpWidth, 4);
-        });
-        // Bullets
-        bullets.forEach(bullet => {
-          ctx.strokeStyle = 'var(--bullet)';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(bullet.from.x, bullet.from.y);
-          ctx.lineTo(bullet.to.x, bullet.to.y);
-          ctx.stroke();
+        if(weakness && weakness.amp>0){
+          enemy.weaknessEffects.push({amp: weakness.amp, d: weakness.d});
+        }
+        if(stun && stun>0){
+          enemy.stunDur = Math.max(enemy.stunDur || 0, stun);
+        }
+        if(fear && fear.p>0){
+          enemy.slowEffects.push({p: fear.p, d: fear.d});
+        }
+        if(knockback && knockback>0){
+          applyKnockback(enemy, knockback);
+        }
+        // Additional fear effect from civilisation bonus
+        if(fearChance > 0 && Math.random() < fearChance){
+          enemy.slowEffects.push({p: 0.4, d: 3});
+        }
+        // Trigger a short-lived visual effect at the hit location
+        effects.push({
+          x: enemy.x,
+          y: enemy.y,
+          text: HIT_EMOJIS[Math.floor(Math.random() * HIT_EMOJIS.length)],
+          age: 0,
+          life: 0.5
         });
       }
+    });
+    tower.cd = cooldown;
+  }
 
-      function gameLoop(timestamp) {
-        if (!lastTime) lastTime = timestamp;
-        const dt = (timestamp - lastTime) / 1000;
-        lastTime = timestamp;
-        if (state === 'playing') {
-          maybeSpawnEnemy(dt * 1000);
-          updateEnemies(dt);
-          updateTowers(dt);
-          updateBullets(dt);
-          draw();
+  // Apply knockback effect by moving an enemy backwards along its path
+  // distUnits: number of grid cells to push the enemy back
+  function applyKnockback(enemy, distUnits){
+    if(!enemy.path || enemy.path.length === 0) return;
+    // Reduce the target index by knockback distance but keep at least 1
+    const newIdx = Math.max(1, enemy.idx - distUnits);
+    enemy.idx = newIdx;
+    // Move enemy to the center of the new path cell
+    const cell = enemy.path[newIdx - 1];
+    if(cell){
+      const pos = toPix(cell.col, cell.row);
+      enemy.x = pos.x;
+      enemy.y = pos.y;
+    }
+  }
+
+  // Update bullets
+  function updateBullets(dt){
+    for(let i=bullets.length-1;i>=0;i--){
+      bullets[i].t -= dt;
+      if(bullets[i].t <= 0) bullets.splice(i,1);
+    }
+  }
+
+  /**
+   * Advance all active summons.  Summons travel along their assigned path
+   * from the hero’s location toward the goal.  They move at their own
+   * speed, damage the first enemy they encounter, and then disappear.  If a
+   * summon reaches the goal without hitting anything, it also vanishes.  Each
+   * summon stores a reference to its owner so kills can be credited.
+   */
+  function updateSummons(dt){
+    for(let i=summons.length-1; i>=0; i--){
+      const s = summons[i];
+      // Skip if path exhausted
+      if(!s.path || s.idx >= s.path.length){
+        summons.splice(i,1);
+        continue;
+      }
+      const nextCell = s.path[s.idx];
+      const target = toPix(nextCell.col, nextCell.row);
+      const dx = target.x - s.x;
+      const dy = target.y - s.y;
+      const dist = Math.hypot(dx, dy);
+      const step = s.speed * dt * tile;
+      if(dist <= step){
+        s.x = target.x;
+        s.y = target.y;
+        s.idx++;
+      } else {
+        s.x += dx / dist * step;
+        s.y += dy / dist * step;
+      }
+      // Check for collision with any enemy
+      let hit = false;
+      for(const e of enemies){
+        const edx = e.x - s.x;
+        const edy = e.y - s.y;
+        if(Math.hypot(edx, edy) <= tile * 0.4){
+          // Apply damage, factoring in faction damage bonus
+          const fBonus = FACTION_BONUSES[s.ownerHero.faction] || {};
+          const dmgMult = fBonus.damageMultiplier || 1;
+          const dmg = s.damage * dmgMult;
+          e.hp -= dmg;
+          if(e.hp <= 0){ registerKill(s.ownerHero); }
+          effects.push({ x: e.x, y: e.y, text: '💥', age: 0, life: 0.5 });
+          hit = true;
+          break;
         }
-        requestAnimationFrame(gameLoop);
       }
+      if(hit){ summons.splice(i,1); continue; }
+      // Remove if reached end of path
+      if(s.idx >= s.path.length){ summons.splice(i,1); }
+    }
+  }
 
-      function handleCanvasClick(event) {
-        const rect = canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-        const col = Math.floor(x / tileSize);
-        const row = Math.floor(y / tileSize);
-        if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
-        if (state === 'placing') {
-          if (money < TOWER_COST) {
-            msgEl.textContent = 'Not enough gold to place a tower.';
-            state = 'playing';
-            return;
-          }
-          placeTower(col, row);
-          state = 'playing';
-        } else {
-          const tower = towers.find(t => t.col === col && t.row === row);
-          if (tower) {
-            if (tower.level >= MAX_LEVEL) {
-              msgEl.textContent = 'Tower already max level.';
-              return;
-            }
-            if (money >= UPGRADE_COST) {
-              money -= UPGRADE_COST;
-              tower.level++;
-              tower.range   += 0.3;
-              tower.fireRate+= 0.3;
-              updateUI();
-              msgEl.textContent = `Tower upgraded to level ${tower.level}!`;
-            } else {
-              msgEl.textContent = 'Not enough gold to upgrade.';
-            }
-          }
+  // Game update loop
+  function update(dt){
+    // Scale delta time by the current gameSpeed so that movement,
+    // spawning and other time-based mechanics speed up or slow down
+    // accordingly.  When gameSpeed is zero, dt becomes zero and the
+    // game effectively pauses.
+    dt *= gameSpeed;
+    spawnTimer += dt * 1000;
+    if(spawnTimer >= spawnMs){
+      spawnTimer -= spawnMs;
+      // spawn multiple enemies based on wave number: +1 enemy every 5 waves
+      const count = 1 + Math.floor((wave - 1) / 5);
+      for(let i=0; i<count; i++){
+        spawnEnemy();
+      }
+      // From wave 2 onwards, introduce flying enemies.  Spawn one flying
+      // enemy per spawn cycle so that players must adjust their tower
+      // composition to counter them.
+      if(wave >= 2){
+        spawnFlyingEnemy();
+      }
+    }
+    updateEnemies(dt);
+    updateTowers(dt);
+    updateBullets(dt);
+    // Advance summoned creatures so they move and apply damage before
+    // rendering.  Summons are updated between bullets and effects so they
+    // can interact with both enemies and the visual system.
+    updateSummons(dt);
+    // Advance and remove timed effects (explosions/hits)
+    updateEffects(dt);
+  }
+
+  // Drawing
+  function draw(){
+    ctx.clearRect(0, 0, cvs.width, cvs.height);
+    // Determine current path cells to draw roads
+    const p = findPath();
+    const pathSet = new Set();
+    if(p) p.forEach(cell => { pathSet.add(`${cell.row}-${cell.col}`); });
+    // Draw ground tiles with their respective patterns
+    for(let r=0; r<ROWS; r++){
+      for(let c=0; c<COLS; c++){
+        const x = c * tile;
+        const y = r * tile;
+        // Choose fill pattern: obstacles -> stone, path -> dirt, default -> grass
+        let fill = patternGrass;
+        if(obstacles[r][c]){
+          fill = patternObstacle;
+        } else if(pathSet.has(`${r}-${c}`)){
+          fill = patternPath;
+        }
+        ctx.fillStyle = fill;
+        ctx.fillRect(x, y, tile, tile);
+        // override spawn and goal squares with solid colours
+        if(c === spawn.col && r === spawn.row){
+          ctx.fillStyle = 'var(--spawn)';
+          ctx.fillRect(x, y, tile, tile);
+        } else if(c === goal.col && r === goal.row){
+          ctx.fillStyle = 'var(--goal)';
+          ctx.fillRect(x, y, tile, tile);
         }
       }
+    }
+    // Show range circles for ghost placement and hovered towers before drawing props and towers
+    if(ghost.active){
+      // Determine range from selected tower type and faction
+      const rangeVal = (TOWER_DATA[factionSel.value] && TOWER_DATA[factionSel.value][towerSel.value]) ? TOWER_DATA[factionSel.value][towerSel.value].base.range : 0;
+      const radius = rangeVal * tile;
+      const gx = ghost.col * tile + tile / 2;
+      const gy = ghost.row * tile + tile / 2;
+      // Draw a semi‑transparent fill and a subtle outline so the player can easily
+      // see the area of effect when placing a tower.  A darker border makes the
+      // circle pop against the patterned ground.
+      ctx.fillStyle = 'rgba(60,120,200,0.25)';
+      ctx.beginPath();
+      ctx.arc(gx, gy, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(60,120,200,0.7)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    if(!placing && hoverTower){
+      // Display the attack range of the currently hovered tower.  Use a warm
+      // colour so it contrasts with the blue placement indicator.  Draw both a
+      // filled area and an outline for clarity.
+      const radius = (hoverTower.attrs && hoverTower.attrs.range ? hoverTower.attrs.range : 0) * tile;
+      const cx = hoverTower.col * tile + tile / 2;
+      const cy = hoverTower.row * tile + tile / 2;
+      ctx.fillStyle = 'rgba(255,255,0,0.2)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,0,0.7)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    // Draw decorative props (logs, rocks, tents) on grass squares
+    decorations.forEach(dec => {
+      const cx = dec.col * tile + tile / 2;
+      const cy = dec.row * tile + tile / 2;
+      ctx.font = `${tile * 0.6}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(dec.emoji, cx, cy);
+    });
+    // If this map includes a central castle, render it before towers.  The
+    // castle sits at the centre of its defined area and scales with its
+    // width/height so it visually occupies the blocked cells.  A larger
+    // font size is used to make the castle prominent.  We tint the
+    // castle a subtle gold to distinguish it from other props.
+    if(castleData){
+      const cw = castleData.w;
+      const ch = castleData.h;
+      const centerX = (castleData.col + cw / 2) * tile + tile / 2;
+      const centerY = (castleData.row + ch / 2) * tile + tile / 2;
+      const size = tile * Math.max(cw, ch);
+      ctx.font = `${size}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#d4af37';
+      ctx.fillText('🏰', centerX, centerY);
+    }
+    // Draw towers as coloured circles with emoji and level indicators
+    towers.forEach(t => {
+      const cx = t.col * tile + tile / 2;
+      const cy = t.row * tile + tile / 2;
+      // Enlarge the tower footprint for better visibility on larger displays
+      const radius = tile * 0.4;
+      // Circle base coloured by faction
+      const baseColour = FACTION_COLORS[t.faction] || '#cccccc';
+      ctx.fillStyle = baseColour;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+      // Outline hero towers to distinguish them
+      if(t.isHero){
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius + 2, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      // Draw tower emoji at center.  Heroes use a faction‑specific symbol
+      // pulled from HERO_EMOJIS so they look unique to their faction.
+      const emo = t.isHero ? (HERO_EMOJIS[t.faction] || TOWER_EMOJIS_NEW.hero) : (TOWER_EMOJIS_NEW[t.type] || '');
+      // Increase emoji size so the tower symbol is easier to make out
+      ctx.font = `${tile * 0.7}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#000';
+      ctx.fillText(emo, cx, cy);
+      // Draw level indicator near top-right of tower
+      // Enlarge level indicator for readability
+      ctx.font = `${tile * 0.35}px sans-serif`;
+      ctx.fillStyle = '#111';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'top';
+      ctx.fillText(t.lvl, t.col * tile + tile - 2, t.row * tile + 2);
+    });
+    // Draw enemies as emojis with hit point bars
+    enemies.forEach(e => {
+      // Increase enemy size multiplier so orc/boss emojis stand out more
+      const size = tile * 0.8;
+      ctx.font = `${size}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const emoji = e.icon || ENEMY_EMOJIS[0];
+      ctx.fillText(emoji, e.x, e.y);
+      // Draw hp bar above enemy
+      const barW = tile * 0.6;
+      const barH = 4;
+      const bx = e.x - barW / 2;
+      const by = e.y - size * 0.6;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(bx, by, barW, barH);
+      ctx.fillStyle = '#00b300';
+      const w = Math.max(0, Math.min(barW, (e.hp / enemyHP) * barW));
+      ctx.fillRect(bx, by, w, barH);
+    });
+    // Draw hero summons (eagles, horses, wargs, dragons) as they move along the path
+    summons.forEach(s => {
+      // Enlarge summoned creature icons for clarity
+      ctx.font = `${tile * 0.8}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(s.icon, s.x, s.y);
+    });
+    // Draw bullets as thin lines connecting towers and targets.  Artillery
+    // rockets are drawn thicker and in a different colour to convey their
+    // powerful, slower nature.
+    bullets.forEach(b => {
+      // Draw projectile trails.  Artillery towers fire missiles, so their
+      // projectiles are drawn thinner and in the enemy colour with a small
+      // rocket emoji travelling along the path.  Other towers use the
+      // default bullet colour.
+      if(b.type === 'artillery'){
+        ctx.strokeStyle = 'var(--enemy)';
+        ctx.lineWidth = 2;
+      } else {
+        ctx.strokeStyle = 'var(--bullet)';
+        ctx.lineWidth = 2;
+      }
+      ctx.beginPath();
+      ctx.moveTo(b.x1, b.y1);
+      ctx.lineTo(b.x2, b.y2);
+      ctx.stroke();
+      // For artillery projectiles, draw a small rocket emoji at the midpoint
+      if(b.type === 'artillery'){
+        const midX = (b.x1 + b.x2) / 2;
+        const midY = (b.y1 + b.y2) / 2;
+        // Draw a larger rocket symbol to emphasise artillery missiles
+        ctx.font = `${tile * 0.5}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🚀', midX, midY);
+      }
+    });
+    // Draw transient hit/explosion effects
+    for(let i=0;i<effects.length;i++){
+      const eff = effects[i];
+      const progress = eff.age / eff.life;
+      if(progress >= 1) continue;
+      ctx.globalAlpha = 1 - progress;
+      // Increase the size of explosion/hit effect text
+      ctx.font = `${tile * 0.6}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#e63946';
+      // Effects rise slightly as they fade out
+      ctx.fillText(eff.text, eff.x, eff.y - progress * tile * 0.5);
+      ctx.globalAlpha = 1;
+    }
+    // Show placement ghost preview
+    if(ghost.active){
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = ghost.valid ? 'var(--good)' : 'var(--bad)';
+      ctx.fillRect(ghost.col * tile, ghost.row * tile, tile, tile);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = ghost.valid ? 'var(--good)' : 'var(--bad)';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(ghost.col * tile + 2, ghost.row * tile + 2, tile - 4, tile - 4);
+    }
+  }
 
-      function handleBuyClick() {
-        if (state === 'placing') {
-          state = 'playing';
-          msgEl.textContent = '';
-        } else {
-          state = 'placing';
-          msgEl.textContent = 'Tap any free tile to place your tower.';
+  // Loop
+  let lastTime = 0;
+  function loop(timestamp){
+    if(!lastTime) lastTime = timestamp;
+    const dt = (timestamp - lastTime) / 1000;
+    lastTime = timestamp;
+    if(lives > 0){
+      update(dt);
+      draw();
+    }
+    requestAnimationFrame(loop);
+  }
+
+  // Map templates
+  function loadTemplate(name){
+    obstacles = make2D(false);
+    // Reset towers, enemies and bullets when switching maps
+    towers = [];
+    enemies = [];
+    bullets = [];
+    // Clear any castle data unless the selected map redefines it
+    castleData = null;
+    if(name === 'corridors'){
+      // create narrow corridors with central plaza
+      for(let r=0;r<ROWS;r++){
+        for(let c=0;c<COLS;c++){
+          if(r===2||r===ROWS-3) continue;
+          obstacles[r][c] = true;
         }
       }
-
-      function gameOver(text) {
-        state = 'gameOver';
-        msgEl.textContent = `${text} Game Over! Refresh to play again.`;
+      for(let r=3;r<ROWS-3;r++){
+        for(let c=3;c<COLS-3;c++) obstacles[r][c]=false;
       }
+      for(let c=5;c<COLS-5;c+=4){ obstacles[3][c]=true; obstacles[ROWS-4][c]=true; }
+    } else if(name === 'islands'){
+      const coords = [[2,3],[2,4],[2,5],[4,8],[4,9],[5,8],[7,4],[7,5],[6,11],[7,11]];
+      coords.forEach(([r,c]) => obstacles[r][c] = true);
+    } else if(name === 'bent'){
+      // Build a bent path on the enlarged grid.  The battlefield remains
+      // mostly open for tower placement, but we erect four "walls" that
+      // channel enemies along a zig‑zag route: a horizontal wall across the
+      // spawn row, a horizontal wall across a lower row, and two vertical
+      // walls.  Openings in these walls create the path segments.  This
+      // design forces enemies to travel right, then down, then right, then up,
+      // and finally right again.
+      // Start with a fresh open grid (all obstacles false).  Obstacles
+      // persists from previous templates so we must reset them.
+      for(let r=0;r<ROWS;r++){
+        for(let c=0;c<COLS;c++){
+          obstacles[r][c] = false;
+        }
+      }
+      const sr = spawn.row;
+      // The first bend occurs at 1/4 of the width; the second at 3/4.  The
+      // downward turn occurs 1/4 down from the spawn row.  These values
+      // produce a balanced path regardless of the overall grid size.
+      const c1 = Math.floor(COLS / 4);
+      const r2 = sr + Math.floor(ROWS / 4);
+      const c3 = Math.floor(COLS * 3 / 4);
+      // Horizontal wall along spawn row.  Block all columns then carve
+      // openings for the first and last segments.
+      for(let c=0; c<COLS; c++) obstacles[sr][c] = true;
+      for(let c=0; c<=c1; c++) obstacles[sr][c] = false;
+      for(let c=c3; c<COLS; c++) obstacles[sr][c] = false;
+      // Vertical wall at column c1.  Block all rows then carve downward path.
+      for(let r=0; r<ROWS; r++) obstacles[r][c1] = true;
+      for(let r=sr; r<=r2; r++) obstacles[r][c1] = false;
+      // Horizontal wall at row r2.  Block all columns then carve the mid path.
+      for(let c=0; c<COLS; c++) obstacles[r2][c] = true;
+      for(let c=c1; c<=c3; c++) obstacles[r2][c] = false;
+      // Vertical wall at column c3.  Block all rows then carve upward path.
+      for(let r=0; r<ROWS; r++) obstacles[r][c3] = true;
+      for(let r=sr; r<=r2; r++) obstacles[r][c3] = false;
+    } else if(name === 'gondolin'){
+      // Construct a map with a central castle.  The entire field is open
+      // except for a square block in the middle representing Gondolin’s
+      // keep.  The pathfinding will automatically route enemies around
+      // this obstacle.  We compute a 4×4 castle size (or smaller if the
+      // grid is too small) and place it at the centre of the map.
+      for(let r=0;r<ROWS;r++){
+        for(let c=0;c<COLS;c++){
+          obstacles[r][c] = false;
+        }
+      }
+      const cw = Math.min(4, COLS - 2); // ensure castle fits
+      const ch = Math.min(4, ROWS - 2);
+      const startRow = Math.floor((ROWS - ch) / 2);
+      const startCol = Math.floor((COLS - cw) / 2);
+      for(let r=startRow; r<startRow + ch; r++){
+        for(let c=startCol; c<startCol + cw; c++){
+          obstacles[r][c] = true;
+        }
+      }
+      // Record castle dimensions so draw() can render a castle icon
+      castleData = { row: startRow, col: startCol, w: cw, h: ch };
+    }
+    // ensure spawn & goal free
+    obstacles[spawn.row][spawn.col] = false;
+    obstacles[goal.row][goal.col] = false;
+    recomputeBlocked();
+    // Clear enemies as map resets
+    enemies = [];
+    // Populate decorative props anew whenever a template is loaded
+    generateDecorations();
+    ui();
+  }
 
-      function nextWave() {
+  // Event handlers
+  function cellFromEvent(e){
+    const rect = cvs.getBoundingClientRect();
+    // Determine the pointer position.  Use touches if present for wider
+    // compatibility with mobile browsers that may not support optional
+    // chaining or the nullish coalescing operator.  Fallback to mouse
+    // coordinates otherwise.
+    let clientX;
+    let clientY;
+    if (e.touches && e.touches.length) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    return { col: Math.floor(x / tile), row: Math.floor(y / tile) };
+  }
+
+  function onMove(e){
+    if(!placing) return;
+    const {col,row} = cellFromEvent(e);
+    if(col<0||col>=COLS||row<0||row>=ROWS){ ghost.active=false; return; }
+    ghost.active=true; ghost.col=col; ghost.row=row;
+    ghost.valid = canPlace(col,row);
+  }
+
+  function onClick(e){
+    const {col,row} = cellFromEvent(e);
+    if(col<0||col>=COLS||row<0||row>=ROWS) return;
+    // Handle hero relocation when move mode is active
+    if(movingHeroMode){
+      // If a hero is already selected, attempt to move them to the tapped cell
+      if(heroToMove){
+        // Disallow selecting spawn or goal for hero relocation
+        if(col === spawn.col && row === spawn.row){ msg('Cannot move to spawn.'); return; }
+        if(col === goal.col && row === goal.row){ msg('Cannot move to goal.'); return; }
+        // Temporarily free the hero’s current cell so pathfinding ignores it
+        blocked[heroToMove.row][heroToMove.col] = false;
+        const ok = canPlace(col,row);
+        if(!ok){
+          // Restore blocked state for the hero’s original tile
+          blocked[heroToMove.row][heroToMove.col] = true;
+          msg('Invalid destination (blocks path or occupied).');
+          return;
+        }
+        // Move hero: update blocked grid and hero coordinates
+        blocked[heroToMove.row][heroToMove.col] = false;
+        heroToMove.col = col;
+        heroToMove.row = row;
+        blocked[row][col] = true;
+        // Reroute enemies to respect new hero position
+        enemies.forEach(e => rerouteEnemy(e));
+        movingHeroMode = false;
+        moveHeroBtn.setAttribute('aria-pressed','false');
+        moveHeroBtn.classList.add('gray');
+        heroToMove = null;
+        ui();
+        msg('Hero moved.');
+        return;
+      } else {
+        // First tap: select a hero to move
+        const t = towers.find(tw => tw.col === col && tw.row === row);
+        if(!t || !t.isHero){ msg('Tap a hero first.'); return; }
+        heroToMove = t;
+        msg('Select a free square to move the hero.');
+        return;
+      }
+    }
+
+    // Selling mode
+    if(selling){
+      sell(col,row);
+      return;
+    }
+    // Placement mode
+    if(placing){
+      place(col,row);
+      ghost.active=false;
+      return;
+    }
+    // When tapping a tower while not placing/selling/moving, handle hero
+    // abilities before upgrades.  Heroes can summon allies once per wave
+    // upon tapping.  If the hero’s ability has already been used this
+    // round, the tap will instead upgrade the hero.
+    const t = towers.find(tw => tw.col === col && tw.row === row);
+    if(t){
+      if(t.isHero){
+        if(t.summonAvailable){
+          // Spawn a summon from the hero’s location
+          spawnSummon(t);
+          t.summonAvailable = false;
+          msg('Hero calls upon an ally!');
+          return;
+        }
+      }
+      upgradeTower(t);
+    }
+  }
+
+  // Button toggles
+  placeBtn.addEventListener('click', () => {
+    placing = !placing;
+    selling = false;
+    sellBtn.setAttribute('aria-pressed','false'); sellBtn.classList.add('gray');
+    placeBtn.setAttribute('aria-pressed', String(placing));
+    msg(placing ? 'Placement: green = valid spot.' : '');
+  });
+  sellBtn.addEventListener('click', () => {
+    selling = !selling;
+    placing = false; ghost.active=false;
+    placeBtn.setAttribute('aria-pressed','false');
+    sellBtn.setAttribute('aria-pressed', String(selling));
+    sellBtn.classList.toggle('gray', !selling);
+    msg(selling ? 'Sell: tap tower to refund 60%.' : '');
+  });
+
+  // Move hero button toggles relocation mode.  When active, the player taps
+  // a hero and then a destination square to move them.  Moving cancels
+  // placement and selling modes.
+  const moveHeroBtn = document.getElementById('moveHeroBtn');
+  moveHeroBtn.addEventListener('click', () => {
+    movingHeroMode = !movingHeroMode;
+    // Reset placement and selling states when entering move mode
+    placing = false;
+    selling = false;
+    ghost.active = false;
+    heroToMove = null;
+    // Update button styles and messages
+    moveHeroBtn.setAttribute('aria-pressed', String(movingHeroMode));
+    moveHeroBtn.classList.toggle('gray', !movingHeroMode);
+    placeBtn.setAttribute('aria-pressed','false');
+    sellBtn.setAttribute('aria-pressed','false');
+    sellBtn.classList.add('gray');
+    if(movingHeroMode){
+      msg('Move mode: tap a hero to select, then tap a free square.');
+    } else {
+      msg('');
+    }
+  });
+
+  cvs.addEventListener('mousemove', onMove);
+  cvs.addEventListener('touchmove', e => { onMove(e); }, {passive:false});
+  cvs.addEventListener('click', onClick);
+  cvs.addEventListener('touchstart', e => { onClick(e); }, {passive:false});
+
+  // Speed control buttons: stop, 1×, 1.5×, 2×.  Clicking a button
+  // adjusts the global gameSpeed and updates the button styles.
+  const speedButtons = Array.from(document.querySelectorAll('#speedControls button'));
+  speedButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const newSpeed = parseFloat(btn.getAttribute('data-speed'));
+      // Update global speed multiplier
+      gameSpeed = newSpeed;
+      // Mark all buttons as inactive (gray) and unpressed
+      speedButtons.forEach(b => {
+        b.classList.add('gray');
+        b.setAttribute('aria-pressed','false');
+      });
+      // Highlight the selected speed (remove gray) and mark as pressed
+      btn.classList.remove('gray');
+      btn.setAttribute('aria-pressed','true');
+      // Provide feedback to the player
+      if(newSpeed === 0){ msg('Game paused'); }
+      else if(newSpeed === 1){ msg('Speed set to 1×'); }
+      else if(newSpeed === 1.5){ msg('Speed set to 1.5×'); }
+      else if(newSpeed === 2){ msg('Speed set to 2×'); }
+    });
+  });
+
+  // Handle hovering over existing towers to display their attack range. When the
+  // player is placing or selling, we disable hover highlighting.
+  cvs.addEventListener('mousemove', (e) => {
+    if(placing || selling){
+      hoverTower = null;
+      return;
+    }
+    const {col,row} = cellFromEvent(e);
+    hoverTower = towers.find(t => t.col === col && t.row === row) || null;
+  });
+  cvs.addEventListener('mouseleave', () => { hoverTower = null; });
+
+  // Mirror hover logic for touch devices so players can see tower range
+  // when sliding their finger over towers.  We prevent the default
+  // behaviour via passive:false to retain consistent event behaviour.
+  cvs.addEventListener('touchmove', (e) => {
+    // Only update hover if not in placement or selling modes
+    if(placing || selling){
+      hoverTower = null;
+      return;
+    }
+    const {col,row} = cellFromEvent(e);
+    hoverTower = towers.find(t => t.col === col && t.row === row) || null;
+  }, {passive:false});
+
+  factionSel.addEventListener('change', () => {
+    // Update cost and exit placement mode when changing faction
+    updatePlaceButton();
+    placing = false;
+    ghost.active = false;
+    // Update HUD elements (including faction icon) on faction change
+    ui();
+  });
+  towerSel.addEventListener('change', () => {
+    updatePlaceButton();
+    // Exit placement mode when changing tower type
+    placing = false;
+    ghost.active = false;
+  });
+  mapSel.addEventListener('change', () => {
+    // Exit placement and selling modes when changing map to avoid accidental towers
+    placing = false;
+    selling = false;
+    ghost.active = false;
+    // When changing the map, reset the game state so that players can
+    // immediately begin a fresh run.  Without resetting, lives and
+    // resources carry over from the previous session and may prevent
+    // placement if the player had already lost.  After clearing
+    // variables, load the selected template and notify the user.
+    resetGame();
+    loadTemplate(mapSel.value);
+    msg('Map loaded.');
+  });
+
+  function msg(text){
+    // Display a message with fade-out animation. When a new message arrives,
+    // it resets the fade timer so messages do not overlap.
+    msgEl.textContent = text || '';
+    // Ensure message is visible
+    msgEl.style.opacity = 1;
+    // Cancel any existing fade timer
+    if(msgEl._fadeTimeout) clearTimeout(msgEl._fadeTimeout);
+    // If there's content, fade it out after 2 seconds
+    if(text){
+      msgEl._fadeTimeout = setTimeout(() => {
+        msgEl.style.opacity = 0;
+      }, 2000);
+    }
+  }
+
+  // Initialize
+  function init(){
+    resize();
+    // Create tile patterns and apply a forest canopy background once at game start
+    createPatterns();
+    setForestBackground();
+    ui();
+    loadTemplate(mapSel.value);
+    requestAnimationFrame(loop);
+    setInterval(() => {
+      if(lives > 0){
         wave++;
         enemyHP += 2;
-        spawnInterval = Math.max(500, spawnInterval - 150);
-        updateUI();
+        spawnMs = Math.max(500, spawnMs - 150);
+        ui();
+        // Spawn an elite boss at the end of each wave to challenge the player
+        spawnBoss();
+        // Refresh hero abilities so each hero can summon again in the new wave
+        towers.forEach(t => {
+          if(t.isHero) t.summonAvailable = true;
+        });
       }
+    }, 20000);
 
-      // Event listeners
-      window.addEventListener('resize', () => { resizeCanvas(); draw(); });
-      canvas.addEventListener('click', handleCanvasClick);
-      canvas.addEventListener('touchstart', e => {
-        e.preventDefault();
-        handleCanvasClick(e.changedTouches[0]);
-      }, { passive: false });
-      buyBtn.addEventListener('click', handleBuyClick);
-      buyBtn.addEventListener('touchstart', e => { e.preventDefault(); handleBuyClick(); }, { passive: false });
-      factionSelect.addEventListener('change', () => {
-        currentFaction = factionSelect.value;
-        msgEl.textContent = `Faction set to ${currentFaction}.`;
-      });
-
-      function init() {
-        resizeCanvas();
-        updateUI();
-        requestAnimationFrame(gameLoop);
-        setInterval(() => { if (state === 'playing') nextWave(); }, 20000);
-      }
-      init();
-    })();
-  </script>
+    // Ensure the player sees a boss in the opening wave by spawning one
+    // shortly after the game starts.  This timeout triggers only once and
+    // spawns a boss during wave 1 so that boss mobs are always present.
+    setTimeout(() => {
+      if(lives > 0) spawnBoss();
+    }, 10000);
+  }
+  function resize(){ const W = document.getElementById('game-wrap').clientWidth; tile = W / COLS; cvs.width = W; cvs.height = tile * ROWS; }
+  window.addEventListener('resize', () => { resize(); });
+  init();
+})();
+</script>
 </body>
 </html>
