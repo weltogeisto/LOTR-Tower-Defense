@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mini Maul Defense – Extended Edition</title>
-  <meta name="description" content="Maze-style tower defense with factions and multiple tower types.">
+  <title>LOTR Tower Defense – Ultimate Edition</title>
+  <meta name="description" content="Epic Lord of the Rings tower defense game with factions, heroes, and multiple tower types.">
   <style>
     :root{
       --bg:#eef3f8;
@@ -54,6 +54,79 @@
     #heroInfo{font-size:0.9rem;color:var(--accent);text-align:center;margin-top:0.25rem}
     @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
+    /* Game over overlay */
+    #gameOverOverlay{
+      position:fixed;
+      top:0;left:0;right:0;bottom:0;
+      background:rgba(0,0,0,0.85);
+      display:none;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      z-index:1000;
+      color:#fff;
+      font-family:system-ui;
+    }
+    #gameOverOverlay.active{display:flex}
+    #gameOverOverlay h2{font-size:3rem;color:#e63946;margin-bottom:1rem;text-shadow:0 0 20px #e63946}
+    #gameOverOverlay .stats{font-size:1.2rem;margin-bottom:2rem;text-align:center;line-height:2}
+    #gameOverOverlay .stats span{color:#ffd700}
+    #restartBtn{
+      background:linear-gradient(135deg,#4b8bbe,#6daedb);
+      color:#fff;border:none;border-radius:1rem;
+      padding:1rem 3rem;font-size:1.3rem;cursor:pointer;
+      box-shadow:0 4px 15px rgba(75,139,190,0.4);
+      transition:transform 0.2s,box-shadow 0.2s;
+    }
+    #restartBtn:hover{transform:scale(1.05);box-shadow:0 6px 20px rgba(75,139,190,0.6)}
+
+    /* Victory overlay */
+    #victoryOverlay{
+      position:fixed;
+      top:0;left:0;right:0;bottom:0;
+      background:rgba(0,0,0,0.85);
+      display:none;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      z-index:1000;
+      color:#fff;
+      font-family:system-ui;
+    }
+    #victoryOverlay.active{display:flex}
+    #victoryOverlay h2{font-size:3rem;color:#ffd700;margin-bottom:1rem;text-shadow:0 0 20px #ffd700}
+
+    /* Tooltip styling */
+    #tooltip{
+      position:fixed;
+      background:rgba(20,20,30,0.95);
+      color:#fff;border-radius:0.5rem;
+      padding:0.75rem 1rem;font-size:0.85rem;
+      pointer-events:none;z-index:500;
+      max-width:280px;
+      box-shadow:0 4px 15px rgba(0,0,0,0.5);
+      border:1px solid rgba(255,255,255,0.1);
+      display:none;
+      line-height:1.5;
+    }
+    #tooltip.active{display:block}
+    #tooltip h4{margin:0 0 0.5rem;color:#ffd700;font-size:1rem}
+    #tooltip .stat{display:flex;justify-content:space-between;margin:0.2rem 0}
+    #tooltip .stat-name{color:#aaa}
+    #tooltip .stat-value{color:#4b8bbe}
+    #tooltip .upgrade-info{margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.1);color:#10b981;font-size:0.8rem}
+
+    /* Wave preview */
+    #wavePreview{
+      position:absolute;top:0;right:0;
+      background:rgba(20,20,30,0.9);
+      color:#fff;padding:0.5rem 0.75rem;
+      border-radius:0 0 0 0.5rem;
+      font-size:0.85rem;
+      z-index:100;
+    }
+    #wavePreview .enemy-icon{margin-right:0.25rem}
+
     /* Mobile optimisations: on narrow screens the game scales to fill the
        viewport width, and controls stack vertically for readability. */
     @media (max-width: 640px){
@@ -65,7 +138,7 @@
   </style>
 </head>
 <body>
-<header><h1>🛡️ Mini Maul Defense – Extended Edition</h1></header>
+<header><h1>🛡️ LOTR Tower Defense – Ultimate Edition</h1></header>
 <main>
   <section id="hud" aria-label="Game status">
     <div id="gold" aria-live="polite">Gold: 200</div>
@@ -128,18 +201,52 @@
       <button id="speed15" class="btn gray" data-speed="1.5" aria-pressed="false">1.5×</button>
       <button id="speed2" class="btn gray" data-speed="2" aria-pressed="false">2×</button>
     </span>
+    <button id="audioToggle" class="btn" style="margin-left:0.5rem;">🔊</button>
   </div>
 
-  <div id="game-wrap"><canvas id="canvas" aria-label="Game canvas" tabindex="0"></canvas></div>
+  <div id="game-wrap" style="position:relative;">
+    <canvas id="canvas" aria-label="Game canvas" tabindex="0"></canvas>
+    <div id="wavePreview">
+      <strong>Next Wave:</strong>
+      <span id="waveEnemies"></span>
+    </div>
+  </div>
   <p id="legend">Choose a faction and tower type. Tap <em>Place</em> then tap a free tile (green highlight) to build. Towers have unique abilities (splash, slow, poison, stun, knockback, aura, fear). You cannot block the only path. Tap towers to upgrade. Toggle <em>Sell</em> to refund 60%.</p>
   <div id="msg" aria-live="assertive"></div>
   <!-- Inspirational Tolkien quote displayed in gold at the bottom right.  It
        reminds players that even in the darkest times there is hope and
        encourages them to overcome evil. -->
   <p id="quote" style="font-style:italic;color:#d4af37;text-align:right;width:100%;margin-top:0.5rem;">
-    “There is some good in this world, and it’s worth fighting for.” – Samwise Gamgee
+    "There is some good in this world, and it's worth fighting for." – Samwise Gamgee
   </p>
 </main>
+
+<!-- Game Over Overlay -->
+<div id="gameOverOverlay">
+  <h2>☠️ DEFEAT ☠️</h2>
+  <div class="stats">
+    <div>Final Wave: <span id="finalWave">1</span></div>
+    <div>Final Score: <span id="finalScore">0</span></div>
+    <div>Enemies Slain: <span id="enemiesKilled">0</span></div>
+    <div>Towers Built: <span id="towersBuilt">0</span></div>
+    <div>Best Score: <span id="bestScore">0</span></div>
+  </div>
+  <button id="restartBtn">⚔️ Fight Again ⚔️</button>
+</div>
+
+<!-- Victory Overlay -->
+<div id="victoryOverlay">
+  <h2>🏆 VICTORY 🏆</h2>
+  <div class="stats">
+    <div>You survived <span id="victoryWave">50</span> waves!</div>
+    <div>Final Score: <span id="victoryScore">0</span></div>
+    <div>Best Score: <span id="victoryBest">0</span></div>
+  </div>
+  <button id="restartBtn2" class="restartBtn" style="background:linear-gradient(135deg,#4b8bbe,#6daedb);color:#fff;border:none;border-radius:1rem;padding:1rem 3rem;font-size:1.3rem;cursor:pointer;">🎉 Play Again 🎉</button>
+</div>
+
+<!-- Tooltip -->
+<div id="tooltip"></div>
 
 <script>
 (() => {
@@ -180,6 +287,161 @@
   // Score tracking: current run and persistent high score using localStorage
   let score = 0;
   let highScore = parseInt(localStorage.getItem('maulHighScore')) || 0;
+
+  // Statistics tracking
+  let totalEnemiesKilled = 0;
+  let totalTowersBuilt = 0;
+  let gameOver = false;
+
+  // Victory condition: survive to wave 50
+  const VICTORY_WAVE = 50;
+
+  // Audio system using Web Audio API
+  let audioCtx = null;
+  let audioEnabled = true;
+
+  function initAudio() {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch(e) {
+      console.warn('Web Audio API not supported');
+      audioEnabled = false;
+    }
+  }
+
+  function playSound(type) {
+    if(!audioEnabled || !audioCtx) return;
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+
+    switch(type) {
+      case 'shoot':
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(800, now);
+        osc.frequency.exponentialRampToValueAtTime(200, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now);
+        osc.stop(now + 0.1);
+        break;
+      case 'explosion':
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+        break;
+      case 'place':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.setValueAtTime(600, now + 0.05);
+        osc.frequency.setValueAtTime(800, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.15);
+        break;
+      case 'sell':
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(200, now + 0.2);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+        osc.start(now);
+        osc.stop(now + 0.2);
+        break;
+      case 'upgrade':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.setValueAtTime(450, now + 0.1);
+        osc.frequency.setValueAtTime(600, now + 0.2);
+        osc.frequency.setValueAtTime(900, now + 0.3);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+        osc.start(now);
+        osc.stop(now + 0.4);
+        break;
+      case 'enemyDeath':
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.15);
+        break;
+      case 'bossDeath':
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, now);
+        osc.frequency.exponentialRampToValueAtTime(30, now + 0.5);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+        osc.start(now);
+        osc.stop(now + 0.5);
+        break;
+      case 'wave':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.setValueAtTime(550, now + 0.15);
+        osc.frequency.setValueAtTime(660, now + 0.3);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
+        osc.start(now);
+        osc.stop(now + 0.45);
+        break;
+      case 'gameOver':
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(100, now + 0.5);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 1);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 1);
+        osc.start(now);
+        osc.stop(now + 1);
+        break;
+      case 'victory':
+        // Fanfare
+        const osc2 = audioCtx.createOscillator();
+        const osc3 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        const gain3 = audioCtx.createGain();
+        osc2.connect(gain2); gain2.connect(audioCtx.destination);
+        osc3.connect(gain3); gain3.connect(audioCtx.destination);
+
+        osc.type = osc2.type = osc3.type = 'sine';
+        osc.frequency.setValueAtTime(523, now); // C5
+        osc2.frequency.setValueAtTime(659, now + 0.2); // E5
+        osc3.frequency.setValueAtTime(784, now + 0.4); // G5
+
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+        gain2.gain.setValueAtTime(0.15, now + 0.2);
+        gain2.gain.exponentialRampToValueAtTime(0.01, now + 1);
+        gain3.gain.setValueAtTime(0.15, now + 0.4);
+        gain3.gain.exponentialRampToValueAtTime(0.01, now + 1.2);
+
+        osc.start(now); osc.stop(now + 0.8);
+        osc2.start(now + 0.2); osc2.stop(now + 1);
+        osc3.start(now + 0.4); osc3.stop(now + 1.2);
+        break;
+    }
+  }
+
+  // Screen shake effect
+  let shakeIntensity = 0;
+  let shakeDecay = 0.9;
+
+  function triggerShake(intensity) {
+    shakeIntensity = Math.max(shakeIntensity, intensity);
+  }
 
   let obstacles = make2D(false);
   let towers = [];
@@ -1189,6 +1451,38 @@
     }
   }
 
+  /**
+   * Update the wave preview to show what enemies are coming next.
+   */
+  function updateWavePreview(){
+    const waveEl = document.getElementById('waveEnemies');
+    if(!waveEl) return;
+
+    const nextWave = wave + 1;
+    const enemyCount = 1 + Math.floor(wave / 5);
+    const hasFlying = wave >= 1;
+    const hasBoss = true;
+
+    let preview = '';
+    // Ground enemies
+    for(let i = 0; i < Math.min(enemyCount, 3); i++) {
+      preview += `<span class="enemy-icon">${ENEMY_EMOJIS[i % ENEMY_EMOJIS.length]}</span>`;
+    }
+    if(enemyCount > 3) {
+      preview += `+${enemyCount - 3}`;
+    }
+    // Flying enemies
+    if(hasFlying) {
+      preview += ` <span class="enemy-icon">🦅</span>`;
+    }
+    // Boss
+    if(hasBoss) {
+      preview += ` <span class="enemy-icon" style="font-size:1.2em">💀</span>`;
+    }
+
+    waveEl.innerHTML = preview;
+  }
+
   // Helpers for 2D array
   function make2D(val){ return Array.from({length:ROWS},()=>Array(COLS).fill(val)); }
 
@@ -1210,16 +1504,100 @@
     enemyHP = 5;
     spawnMs = 2000;
     spawnTimer = 0;
+    // Reset statistics
+    totalEnemiesKilled = 0;
+    totalTowersBuilt = 0;
+    gameOver = false;
     // Clear all game objects
     towers = [];
     enemies = [];
     bullets = [];
     summons = [];
+    effects = [];
+    particles = [];
     // Cancel any hero move state
     heroToMove = null;
     movingHeroMode = false;
+    // Hide overlays
+    document.getElementById('gameOverOverlay').classList.remove('active');
+    document.getElementById('victoryOverlay').classList.remove('active');
     // Update the HUD to reflect the reset state
     ui();
+  }
+
+  // Show game over screen
+  function showGameOver() {
+    if(gameOver) return;
+    gameOver = true;
+    playSound('gameOver');
+
+    // Update stats on overlay
+    document.getElementById('finalWave').textContent = wave;
+    document.getElementById('finalScore').textContent = score;
+    document.getElementById('enemiesKilled').textContent = totalEnemiesKilled;
+    document.getElementById('towersBuilt').textContent = totalTowersBuilt;
+    document.getElementById('bestScore').textContent = highScore;
+
+    // Show overlay
+    document.getElementById('gameOverOverlay').classList.add('active');
+  }
+
+  // Show victory screen
+  function showVictory() {
+    if(gameOver) return;
+    gameOver = true;
+    playSound('victory');
+
+    document.getElementById('victoryWave').textContent = wave;
+    document.getElementById('victoryScore').textContent = score;
+    document.getElementById('victoryBest').textContent = highScore;
+
+    document.getElementById('victoryOverlay').classList.add('active');
+  }
+
+  // Particle system for visual effects
+  let particles = [];
+
+  function createParticles(x, y, count, color, type) {
+    for(let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 / count) * i + Math.random() * 0.5;
+      const speed = 50 + Math.random() * 100;
+      particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 0.5 + Math.random() * 0.5,
+        maxLife: 0.5 + Math.random() * 0.5,
+        color,
+        size: type === 'explosion' ? 3 + Math.random() * 4 : 2 + Math.random() * 2,
+        type
+      });
+    }
+  }
+
+  function updateParticles(dt) {
+    for(let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += 200 * dt; // gravity
+      p.life -= dt;
+      if(p.life <= 0) {
+        particles.splice(i, 1);
+      }
+    }
+  }
+
+  function drawParticles() {
+    particles.forEach(p => {
+      const alpha = p.life / p.maxLife;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
   }
 
   // Compute blocked map from obstacles and towers
@@ -1456,8 +1834,15 @@
     const tower = createTowerObject(col,row);
     towers.push(tower);
     gold -= cost;
+    totalTowersBuilt++;
     recomputeBlocked();
     ui();
+    // Play placement sound
+    playSound('place');
+    // Create placement particle effect
+    const cx = col * tile + tile / 2;
+    const cy = row * tile + tile / 2;
+    createParticles(cx, cy, 8, FACTION_COLORS[faction], 'build');
     // Update hero info if a hero was placed
     updateHeroInfo();
     msg('');
@@ -1471,6 +1856,11 @@
       const t = towers[idx];
       const refund = Math.round(t.costSpent * 0.6);
       gold += refund;
+      // Create sell particle effect
+      const cx = t.col * tile + tile / 2;
+      const cy = t.row * tile + tile / 2;
+      createParticles(cx, cy, 6, '#ffd700', 'sell');
+      playSound('sell');
       towers.splice(idx,1);
       recomputeBlocked();
       enemies.forEach(e => rerouteEnemy(e));
@@ -1534,6 +1924,11 @@
       tower.attrs.bonus += upgrade.bonus;
     }
     ui();
+    // Play upgrade sound and particles
+    playSound('upgrade');
+    const cx = tower.col * tile + tile / 2;
+    const cy = tower.row * tile + tile / 2;
+    createParticles(cx, cy, 12, '#ffd700', 'upgrade');
     msg(`Upgraded to L${tower.lvl}.`);
   }
 
@@ -1580,6 +1975,8 @@
     if(iconEl) iconEl.textContent = FACTION_EMOJIS[factionSel.value] || '';
     // Update scoreboard display
     updateScoreBoard();
+    // Update wave preview
+    updateWavePreview();
   }
 
   // Display hero information (level and kills). Called whenever hero state changes.
@@ -1650,7 +2047,7 @@
         enemies.splice(i,1);
         lives--;
         ui();
-        if(lives <= 0) msg('Game Over! Refresh to restart.');
+        if(lives <= 0) showGameOver();
         continue;
       }
       const tgtCell = e.path[e.idx];
@@ -1667,7 +2064,7 @@
           enemies.splice(i,1);
           lives--;
           ui();
-          if(lives <= 0) msg('Game Over! Refresh to restart.');
+          if(lives <= 0) showGameOver();
           continue;
         }
       } else {
@@ -1675,7 +2072,21 @@
         e.y += dy / dist * step;
       }
       if(e.hp <= 0){
+        // Create death particles
+        const deathColor = e.isBoss ? '#ff4444' : '#ff8844';
+        createParticles(e.x, e.y, e.isBoss ? 20 : 10, deathColor, 'explosion');
+
+        // Play death sound
+        if(e.isBoss) {
+          playSound('bossDeath');
+          triggerShake(8);
+        } else {
+          playSound('enemyDeath');
+        }
+
         enemies.splice(i,1);
+        totalEnemiesKilled++;
+
         // Award gold and score based on enemy type
         const reward = e.isBoss ? 50 : 10;
         const pts    = e.isBoss ? 5 : 1;
@@ -1994,11 +2405,24 @@
     updateSummons(dt);
     // Advance and remove timed effects (explosions/hits)
     updateEffects(dt);
+    // Update particle system
+    updateParticles(dt);
+    // Decay screen shake
+    shakeIntensity *= shakeDecay;
+    if(shakeIntensity < 0.1) shakeIntensity = 0;
   }
 
   // Drawing
   function draw(){
     ctx.clearRect(0, 0, cvs.width, cvs.height);
+
+    // Apply screen shake
+    ctx.save();
+    if(shakeIntensity > 0) {
+      const shakeX = (Math.random() - 0.5) * shakeIntensity;
+      const shakeY = (Math.random() - 0.5) * shakeIntensity;
+      ctx.translate(shakeX, shakeY);
+    }
     // Determine current path cells to draw roads
     const p = findPath();
     const pathSet = new Set();
@@ -2019,10 +2443,10 @@
         ctx.fillRect(x, y, tile, tile);
         // override spawn and goal squares with solid colours
         if(c === spawn.col && r === spawn.row){
-          ctx.fillStyle = 'var(--spawn)';
+          ctx.fillStyle = '#8ecae6';
           ctx.fillRect(x, y, tile, tile);
         } else if(c === goal.col && r === goal.row){
-          ctx.fillStyle = 'var(--goal)';
+          ctx.fillStyle = '#219ebc';
           ctx.fillRect(x, y, tile, tile);
         }
       }
@@ -2160,10 +2584,10 @@
       // rocket emoji travelling along the path.  Other towers use the
       // default bullet colour.
       if(b.type === 'artillery'){
-        ctx.strokeStyle = 'var(--enemy)';
+        ctx.strokeStyle = '#e63946';
         ctx.lineWidth = 2;
       } else {
-        ctx.strokeStyle = 'var(--bullet)';
+        ctx.strokeStyle = '#2a9d8f';
         ctx.lineWidth = 2;
       }
       ctx.beginPath();
@@ -2199,13 +2623,53 @@
     // Show placement ghost preview
     if(ghost.active){
       ctx.globalAlpha = 0.25;
-      ctx.fillStyle = ghost.valid ? 'var(--good)' : 'var(--bad)';
+      ctx.fillStyle = ghost.valid ? '#10b981' : '#ef4444';
       ctx.fillRect(ghost.col * tile, ghost.row * tile, tile, tile);
       ctx.globalAlpha = 1;
-      ctx.strokeStyle = ghost.valid ? 'var(--good)' : 'var(--bad)';
+      ctx.strokeStyle = ghost.valid ? '#10b981' : '#ef4444';
       ctx.lineWidth = 3;
       ctx.strokeRect(ghost.col * tile + 2, ghost.row * tile + 2, tile - 4, tile - 4);
     }
+
+    // Draw particles
+    drawParticles();
+
+    // Draw status effect indicators on enemies
+    enemies.forEach(e => {
+      const indicatorY = e.y - tile * 0.8;
+      let offsetX = -15;
+
+      // Show slow indicator
+      if(e.slowEffects && e.slowEffects.length > 0) {
+        ctx.font = `${tile * 0.3}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('❄️', e.x + offsetX, indicatorY);
+        offsetX += 12;
+      }
+      // Show DOT indicator
+      if(e.dotEffects && e.dotEffects.length > 0) {
+        ctx.font = `${tile * 0.3}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('🔥', e.x + offsetX, indicatorY);
+        offsetX += 12;
+      }
+      // Show stun indicator
+      if(e.stunDur && e.stunDur > 0) {
+        ctx.font = `${tile * 0.3}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('💫', e.x + offsetX, indicatorY);
+        offsetX += 12;
+      }
+      // Show weakness indicator
+      if(e.weaknessEffects && e.weaknessEffects.length > 0) {
+        ctx.font = `${tile * 0.3}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('💔', e.x + offsetX, indicatorY);
+      }
+    });
+
+    // Restore context after shake
+    ctx.restore();
   }
 
   // Loop
@@ -2497,7 +2961,68 @@
     const {col,row} = cellFromEvent(e);
     hoverTower = towers.find(t => t.col === col && t.row === row) || null;
   });
-  cvs.addEventListener('mouseleave', () => { hoverTower = null; });
+  cvs.addEventListener('mouseleave', () => {
+    hoverTower = null;
+    document.getElementById('tooltip').classList.remove('active');
+  });
+
+  // Tooltip function
+  function showTooltip(tower, x, y) {
+    const tooltip = document.getElementById('tooltip');
+    const data = TOWER_DATA[tower.faction][tower.type];
+    const nextUpgrade = tower.upgradeIndex < data.upgrades.length ? data.upgrades[tower.upgradeIndex] : null;
+
+    let html = `<h4>${tower.name} (L${tower.lvl})</h4>`;
+    html += `<div class="stat"><span class="stat-name">Damage:</span><span class="stat-value">${tower.attrs.damage}</span></div>`;
+    html += `<div class="stat"><span class="stat-name">Range:</span><span class="stat-value">${tower.attrs.range} tiles</span></div>`;
+    html += `<div class="stat"><span class="stat-name">Cooldown:</span><span class="stat-value">${tower.attrs.cooldown.toFixed(1)}s</span></div>`;
+
+    if(tower.attrs.splash > 0) {
+      html += `<div class="stat"><span class="stat-name">Splash:</span><span class="stat-value">${tower.attrs.splash} tiles</span></div>`;
+    }
+    if(tower.attrs.slow && tower.attrs.slow.p > 0) {
+      html += `<div class="stat"><span class="stat-name">Slow:</span><span class="stat-value">${Math.round(tower.attrs.slow.p * 100)}% for ${tower.attrs.slow.d}s</span></div>`;
+    }
+    if(tower.attrs.dot && tower.attrs.dot.dps > 0) {
+      html += `<div class="stat"><span class="stat-name">DOT:</span><span class="stat-value">${tower.attrs.dot.dps}/s for ${tower.attrs.dot.d}s</span></div>`;
+    }
+    if(tower.attrs.stun > 0) {
+      html += `<div class="stat"><span class="stat-name">Stun:</span><span class="stat-value">${tower.attrs.stun}s</span></div>`;
+    }
+    if(tower.attrs.pierce > 0) {
+      html += `<div class="stat"><span class="stat-name">Pierce:</span><span class="stat-value">+${tower.attrs.pierce} targets</span></div>`;
+    }
+    if(tower.attrs.crit > 0) {
+      html += `<div class="stat"><span class="stat-name">Crit:</span><span class="stat-value">${Math.round(tower.attrs.crit * 100)}%</span></div>`;
+    }
+    if(tower.isHero) {
+      html += `<div class="stat"><span class="stat-name">Kills:</span><span class="stat-value">${tower.heroKills || 0}</span></div>`;
+    }
+
+    if(nextUpgrade) {
+      html += `<div class="upgrade-info">⬆️ Next upgrade: ${nextUpgrade.cost} gold</div>`;
+    } else {
+      html += `<div class="upgrade-info">Max level reached!</div>`;
+    }
+
+    tooltip.innerHTML = html;
+    tooltip.style.left = (x + 15) + 'px';
+    tooltip.style.top = (y - 10) + 'px';
+    tooltip.classList.add('active');
+  }
+
+  function hideTooltip() {
+    document.getElementById('tooltip').classList.remove('active');
+  }
+
+  // Update mousemove to show tooltips
+  cvs.addEventListener('mousemove', (e) => {
+    if(!placing && !selling && hoverTower) {
+      showTooltip(hoverTower, e.clientX, e.clientY);
+    } else {
+      hideTooltip();
+    }
+  });
 
   // Mirror hover logic for touch devices so players can see tower range
   // when sliding their finger over towers.  We prevent the default
@@ -2560,18 +3085,48 @@
   // Initialize
   function init(){
     resize();
+    // Initialize audio system
+    initAudio();
     // Create tile patterns and apply a forest canopy background once at game start
     createPatterns();
     setForestBackground();
     ui();
     loadTemplate(mapSel.value);
     requestAnimationFrame(loop);
+
+    // Restart button handlers
+    document.getElementById('restartBtn').addEventListener('click', () => {
+      resetGame();
+      loadTemplate(mapSel.value);
+      msg('New game started!');
+    });
+    document.getElementById('restartBtn2').addEventListener('click', () => {
+      resetGame();
+      loadTemplate(mapSel.value);
+      msg('New game started!');
+    });
+
+    // Audio toggle
+    document.getElementById('audioToggle').addEventListener('click', () => {
+      audioEnabled = !audioEnabled;
+      document.getElementById('audioToggle').textContent = audioEnabled ? '🔊' : '🔇';
+      msg(audioEnabled ? 'Sound enabled' : 'Sound muted');
+    });
+
+    // Wave timer
     setInterval(() => {
-      if(lives > 0){
+      if(lives > 0 && !gameOver){
         wave++;
-        enemyHP += 2;
-        spawnMs = Math.max(500, spawnMs - 150);
+        // Check for victory
+        if(wave >= VICTORY_WAVE) {
+          showVictory();
+          return;
+        }
+        // Gradual difficulty scaling - starts slow, ramps up
+        enemyHP += 1 + Math.floor(wave / 10);
+        spawnMs = Math.max(600, spawnMs - 100);
         ui();
+        playSound('wave');
         // Spawn an elite boss at the end of each wave to challenge the player
         spawnBoss();
         // Refresh hero abilities so each hero can summon again in the new wave
@@ -2585,7 +3140,7 @@
     // shortly after the game starts.  This timeout triggers only once and
     // spawns a boss during wave 1 so that boss mobs are always present.
     setTimeout(() => {
-      if(lives > 0) spawnBoss();
+      if(lives > 0 && !gameOver) spawnBoss();
     }, 10000);
   }
   function resize(){ const W = document.getElementById('game-wrap').clientWidth; tile = W / COLS; cvs.width = W; cvs.height = tile * ROWS; }
