@@ -81,6 +81,25 @@
     }
     #restartBtn:hover{transform:scale(1.05);box-shadow:0 6px 20px rgba(75,139,190,0.6)}
 
+    /* Pause overlay */
+    #pauseOverlay{
+      position:fixed;
+      top:0;left:0;right:0;bottom:0;
+      background:rgba(17,24,39,0.45);
+      display:none;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      z-index:900;
+      color:#f8fafc;
+      font-family:system-ui;
+      text-align:center;
+      backdrop-filter:blur(2px);
+    }
+    #pauseOverlay.active{display:flex}
+    #pauseOverlay h2{font-size:2.4rem;margin-bottom:0.5rem;text-shadow:0 0 10px rgba(255,255,255,0.2)}
+    #pauseOverlay p{font-size:1.1rem;color:#e2e8f0}
+
     /* Victory overlay */
     #victoryOverlay{
       position:fixed;
@@ -239,6 +258,12 @@
   <button id="restartBtn">⚔️ Fight Again ⚔️</button>
 </div>
 
+<!-- Pause Overlay -->
+<div id="pauseOverlay" aria-hidden="true">
+  <h2>⏸️ Paused</h2>
+  <p>Select a speed to resume.</p>
+</div>
+
 <!-- Victory Overlay -->
 <div id="victoryOverlay">
   <h2>🏆 VICTORY 🏆</h2>
@@ -266,7 +291,7 @@
   const factionSel = document.getElementById('faction');
   const towerSel = document.getElementById('towerType');
   const mapSel = document.getElementById('map');
-  const startWaveBtn = document.getElementById('startWaveBtn');
+  const pauseOverlay = document.getElementById('pauseOverlay');
 
   // Grid settings
   // Increase the overall dimensions of the battlefield to provide more space
@@ -2943,6 +2968,8 @@
       const newSpeed = parseFloat(btn.getAttribute('data-speed'));
       // Update global speed multiplier
       gameSpeed = newSpeed;
+      pauseOverlay.classList.toggle('active', newSpeed === 0);
+      pauseOverlay.setAttribute('aria-hidden', String(newSpeed !== 0));
       // Mark all buttons as inactive (gray) and unpressed
       speedButtons.forEach(b => {
         b.classList.add('gray');
