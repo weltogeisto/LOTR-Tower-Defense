@@ -202,6 +202,7 @@
       <button id="speed15" class="btn gray" data-speed="1.5" aria-pressed="false">1.5×</button>
       <button id="speed2" class="btn gray" data-speed="2" aria-pressed="false">2×</button>
     </span>
+    <button id="startWaveBtn" class="btn">Start Wave</button>
     <button id="audioToggle" class="btn" style="margin-left:0.5rem;">🔊</button>
   </div>
 
@@ -263,6 +264,7 @@
   const factionSel = document.getElementById('faction');
   const towerSel = document.getElementById('towerType');
   const mapSel = document.getElementById('map');
+  const startWaveBtn = document.getElementById('startWaveBtn');
 
   // Grid settings
   // Increase the overall dimensions of the battlefield to provide more space
@@ -285,6 +287,8 @@
   let enemyHP = 5;
   let spawnMs = 2000;
   let spawnTimer = 0;
+  const WAVE_INTERVAL_MS = 20000;
+  let waveIntervalId = null;
 
   // Score tracking: current run and persistent high score using localStorage
   let score = 0;
@@ -3068,6 +3072,34 @@
     msg('Map loaded.');
   });
 
+  function startNextWave(){
+    if(lives <= 0 || gameOver) return;
+    wave++;
+    // Check for victory
+    if(wave >= VICTORY_WAVE) {
+      showVictory();
+      return;
+    }
+    // Gradual difficulty scaling - starts slow, ramps up
+    enemyHP += 1 + Math.floor(wave / 10);
+    spawnMs = Math.max(600, spawnMs - 100);
+    ui();
+    playSound('wave');
+    // Spawn an elite boss at the end of each wave to challenge the player
+    spawnBoss();
+    // Refresh hero abilities so each hero can summon again in the new wave
+    towers.forEach(t => {
+      if(t.isHero) t.summonAvailable = true;
+    });
+  }
+
+  function startWaveInterval(){
+    if(waveIntervalId) clearInterval(waveIntervalId);
+    waveIntervalId = setInterval(() => {
+      startNextWave();
+    }, WAVE_INTERVAL_MS);
+  }
+
   function msg(text){
     // Display a message with fade-out animation. When a new message arrives,
     // it resets the fade timer so messages do not overlap.
@@ -3115,28 +3147,13 @@
       msg(audioEnabled ? 'Sound enabled' : 'Sound muted');
     });
 
+    startWaveBtn.addEventListener('click', () => {
+      startNextWave();
+      startWaveInterval();
+    });
+
     // Wave timer
-    setInterval(() => {
-      if(lives > 0 && !gameOver){
-        wave++;
-        // Check for victory
-        if(wave >= VICTORY_WAVE) {
-          showVictory();
-          return;
-        }
-        // Gradual difficulty scaling - starts slow, ramps up
-        enemyHP += 1 + Math.floor(wave / 10);
-        spawnMs = Math.max(600, spawnMs - 100);
-        ui();
-        playSound('wave');
-        // Spawn an elite boss at the end of each wave to challenge the player
-        spawnBoss();
-        // Refresh hero abilities so each hero can summon again in the new wave
-        towers.forEach(t => {
-          if(t.isHero) t.summonAvailable = true;
-        });
-      }
-    }, 20000);
+    startWaveInterval();
 
     // Ensure the player sees a boss in the opening wave by spawning one
     // shortly after the game starts.  This timeout triggers only once and
