@@ -95,6 +95,8 @@
       font-family:system-ui;
       text-align:center;
       backdrop-filter:blur(2px);
+      /* Allow clicks to pass through so players can select a speed to resume. */
+      pointer-events:none;
     }
     #pauseOverlay.active{display:flex}
     #pauseOverlay h2{font-size:2.4rem;margin-bottom:0.5rem;text-shadow:0 0 10px rgba(255,255,255,0.2)}
