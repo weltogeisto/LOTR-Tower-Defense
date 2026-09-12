@@ -108,16 +108,56 @@ function drawFloatNums(){
 function lerp(a, b, t){ return a + (b - a) * t; }
 function pathPointsFromCells(path){
   if(!path || path.length < 2) return [];
-  const raw = path.map(c => ({ x: c.col * tile + tile / 2, y: c.row * tile + tile / 2 }));
+  // Simplify micro stair-steps (two opposite turns one cell apart) into diagonals
+  const cells = path.map(c => ({ row: c.row, col: c.col }));
+  const simp = [cells[0]];
+  for(let i = 1; i < cells.length - 1; i++){
+    const a = simp[simp.length - 1], b = cells[i], c = cells[i + 1];
+    const elbow = (a.row === b.row && b.col === c.col) || (a.col === b.col && b.row === c.row);
+    const short = Math.abs(a.row - b.row) + Math.abs(a.col - b.col) <= 1
+              && Math.abs(b.row - c.row) + Math.abs(b.col - c.col) <= 1;
+    if(elbow && short && i + 1 < cells.length - 0){
+      simp.push({ row: (a.row + c.row) / 2, col: (a.col + c.col) / 2, _soft: true });
+      i++;
+      continue;
+    }
+    simp.push(b);
+  }
+  simp.push(cells[cells.length - 1]);
+  const dedup = [simp[0]];
+  for(let i = 1; i < simp.length; i++){
+    const p = simp[i], q = dedup[dedup.length - 1];
+    if(Math.abs(p.row - q.row) < 0.01 && Math.abs(p.col - q.col) < 0.01) continue;
+    dedup.push(p);
+  }
+  const raw = dedup.map(c => ({ x: c.col * tile + tile / 2, y: c.row * tile + tile / 2, soft: !!c._soft }));
   if(raw.length < 3) return raw;
   const out = [raw[0]];
   for(let i = 1; i < raw.length - 1; i++){
     const a = raw[i - 1], b = raw[i], c = raw[i + 1];
-    const turn = (a.x === b.x && b.x === c.x) || (a.y === b.y && b.y === c.y);
-    if(turn){ out.push(b); continue; }
-    const t = 0.35;
-    out.push({ x: b.x + (a.x - b.x) * t, y: b.y + (a.y - b.y) * t });
-    out.push({ x: b.x + (c.x - b.x) * t, y: b.y + (c.y - b.y) * t });
+    const abx = b.x - a.x, aby = b.y - a.y;
+    const bcx = c.x - b.x, bcy = c.y - b.y;
+    const cross = abx * bcy - aby * bcx;
+    const colinear = Math.abs(cross) < 0.001;
+    if(colinear){ out.push(b); continue; }
+    const cut = Math.min(
+      tile * (b.soft ? 1.05 : 0.95),
+      Math.hypot(abx, aby) * 0.72,
+      Math.hypot(bcx, bcy) * 0.72
+    );
+    const lenIn = Math.hypot(abx, aby) || 1;
+    const lenOut = Math.hypot(bcx, bcy) || 1;
+    const pIn  = { x: b.x - (abx / lenIn) * cut, y: b.y - (aby / lenIn) * cut };
+    const pOut = { x: b.x + (bcx / lenOut) * cut, y: b.y + (bcy / lenOut) * cut };
+    out.push(pIn);
+    const steps = b.soft ? 14 : 12;
+    for(let s = 1; s < steps; s++){
+      const tt = s / steps;
+      const ox = (1-tt)*(1-tt)*pIn.x + 2*(1-tt)*tt*b.x + tt*tt*pOut.x;
+      const oy = (1-tt)*(1-tt)*pIn.y + 2*(1-tt)*tt*b.y + tt*tt*pOut.y;
+      out.push({ x: ox, y: oy });
+    }
+    out.push(pOut);
   }
   out.push(raw[raw.length - 1]);
   return out;
@@ -132,14 +172,9 @@ function strokeSmoothPath(g, pts, width, color, alpha){
   g.lineJoin = 'round';
   g.beginPath();
   g.moveTo(pts[0].x, pts[0].y);
-  for(let i = 1; i < pts.length - 1; i++){
-    const xc = (pts[i].x + pts[i + 1].x) / 2;
-    const yc = (pts[i].y + pts[i + 1].y) / 2;
-    g.quadraticCurveTo(pts[i].x, pts[i].y, xc, yc);
+  for(let i = 1; i < pts.length; i++){
+    g.lineTo(pts[i].x, pts[i].y);
   }
-  const last = pts[pts.length - 1];
-  const prev = pts[pts.length - 2];
-  g.quadraticCurveTo(prev.x, prev.y, last.x, last.y);
   g.stroke();
   g.restore();
 }
@@ -169,9 +204,9 @@ function rebuildGroundLayer(){
       let shade = 0.55 + n * 0.35;
       shade = lerp(shade, shade * 0.75, Math.min(1, edge * 1.1));
       const warm = Math.max(0, 1 - distGoal);
-      const rd = Math.floor(14 + shade * 18 + warm * 22);
-      const grn = Math.floor(24 + shade * 28 + warm * 10);
-      const bl = Math.floor(18 + shade * 14);
+      const rd = Math.floor(22 + shade * 22 + warm * 24);
+      const grn = Math.floor(36 + shade * 32 + warm * 12);
+      const bl = Math.floor(24 + shade * 16);
       g.fillStyle = `rgb(${rd},${grn},${bl})`;
       g.fillRect(x, y, tile + 1, tile + 1);
       const inCastle = castleData && ccol >= castleData.col && ccol < castleData.col + castleData.w
@@ -200,10 +235,11 @@ function rebuildGroundLayer(){
 
   const path = findPath();
   const pts = pathPointsFromCells(path);
-  strokeSmoothPath(g, pts, tile * 0.95, 'rgba(20,14,8,0.55)', 1);
-  strokeSmoothPath(g, pts, tile * 0.8, MARK_PALETTE.pathCore, 1);
-  strokeSmoothPath(g, pts, tile * 0.28, '#6a5638', 0.85);
-  strokeSmoothPath(g, pts, tile * 0.12, '#c9a227', 0.22);
+  strokeSmoothPath(g, pts, tile * 1.05, 'rgba(12,8,4,0.45)', 1);
+  strokeSmoothPath(g, pts, tile * 0.82, MARK_PALETTE.pathCore, 1);
+  strokeSmoothPath(g, pts, tile * 0.58, '#4a3a24', 0.9);
+  strokeSmoothPath(g, pts, tile * 0.22, '#6e5734', 0.75);
+  strokeSmoothPath(g, pts, tile * 0.08, 'rgba(201,162,39,0.35)', 1);
 
   decorations.forEach(dec => {
     const cx = dec.col * tile + tile / 2;
