@@ -5,11 +5,20 @@ Thematisch verwandt mit [Fellowship OS](https://github.com/weltogeisto/jga-fello
 
 > **Kein offizielles Tolkien-/Herr-der-Ringe-Produkt.** Rein private Hommage für den Junggesellenabschied.
 
+## Visual pass (SOTA dark battlefield)
+
+Canvas + shell were redesigned end-to-end for a **dark cinematic Mark night**:
+- Unpacked readable `js/game-core.js` (no gzip/base64 pack required)
+- Night parchment terrain, torchlit path glow, glowing Tor/Feste beacons
+- Faction-coloured tower silhouettes, hit flashes, floating damage numbers
+- Premium dark shell (typography, overlays, build bar) matching Fellowship OS
+
+
 ## Vorher / Nachher
 
 | Vorher | Nachher |
 |--------|---------|
-| Englische UI, helles Blau | Dunkles Mark-Theme, Tolkien-flavoured **Deutsch** |
+| Englische UI, helles Blau / light canvas | Dunkles Mark-Theme + **dunkles cinematic Canvas**, DE-UI |
 | Score + localStorage Highscore | **Ruhm**, **Ränge** (Späher → … → Kriegsfürst), **Siegelrune**-Slot |
 | Kein Meta-Log | **Rotes Buch** (letzte Heldentaten) |
 | Einfacher Audio-Toggle | **Horn**-Fanfaren + ruhiger Modus + Lautstärke |
@@ -47,13 +56,13 @@ Oder Ordner einfach über GitHub Pages deployen (Workflow unter `.github/workflo
 ## Struktur
 
 ```
-index.html          # Shell + DE-UI + Overlays
-css/theme.css       # Dunkles Fellowship-Familien-Theme
+index.html          # Shell + DE-UI + Overlays (premium dark)
+css/theme.css       # Fellowship-OS dark premium theme
 js/storage.js       # Ruhm, Ränge, Siegelrune, Settings, Rotes Buch
 js/bridge.js        # Embed-Bridge + postMessage-Protokoll
 js/horn.js          # Horn-Juice (WebAudio)
-js/game.js          # DecompressionStream inflate (valid gzip CRC)
-js/packed/          # gzip+base64 canvas core (repacked; mute+slots fixes)
+js/game-core.js     # Readable canvas core (SOTA dark art direction)
+js/game.js          # Ready-event shim (no gzip pack)
 js/boot.js          # Startbildschirm / Settings-Wiring
 ```
 
