@@ -1,6 +1,6 @@
 /**
- * Assembles plain readable canvas core from js/core/pXX.js.txt (no gzip/base64).
- * Prefers monolithic js/game-core.source.js when present.
+ * Loads plain readable canvas core (no gzip/base64 pack).
+ * Tries: monolith source → 4 quarters → 12 pXX fragments.
  */
 (function () {
   function fail(err) {
@@ -28,6 +28,12 @@
     });
   }
 
+  function loadQuarters() {
+    return Promise.all([0,1,2,3].map(function (i) {
+      return get('js/game-core.source.q' + i + '.js');
+    })).then(function (parts) { run(parts.join('')); });
+  }
+
   function loadParts() {
     var paths = [];
     for (var i = 0; i < 12; i++) {
@@ -36,7 +42,9 @@
     return Promise.all(paths.map(get)).then(function (parts) { run(parts.join('')); });
   }
 
-  get('js/game-core.source.js').then(run).catch(function () {
-    return loadParts();
-  }).catch(fail);
+  get('js/game-core.source.js')
+    .then(run)
+    .catch(function () { return loadQuarters(); })
+    .catch(function () { return loadParts(); })
+    .catch(fail);
 })();
