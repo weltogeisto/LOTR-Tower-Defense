@@ -1,0 +1,195 @@
+     bonusFlying: 1
+        },
+        upgrades: [
+          { cost: 80, damage: 5 },
+          { cost: 100, range: 2 },
+          { cost: 120, cooldown: -0.1, damage: 10 }
+        ]
+      }
+    },
+    Mordor: {
+      artillery: {
+        name: 'Troll Catapult',
+        baseCost: 170,
+        base: {
+          damage: 60,
+          range: 9,
+          cooldown: 7,
+          splash: 2,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 1,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // +30 damage, +1s stun
+          { cost: 120, damage: 30, stun: 1 },
+          // +2 range, -2s cooldown
+          { cost: 170, range: 2, cooldown: -2 },
+          // +40 damage, adds fear (50% slow for 3s)
+          { cost: 220, damage: 40, fear: { p: 0.5, d: 3 } }
+        ]
+      },
+      slow: {
+        name: 'Wraith Shrine',
+        baseCost: 140,
+        base: {
+          damage: 15,
+          // Reduced range for Mordor’s slow towers
+          range: 5,
+          cooldown: 1.5,
+          splash: 0,
+          slow: { p: 0.4, d: 4 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // +10 damage, +10% slow
+          { cost: 100, damage: 10, slow: { p: 0.1, d: 0 } },
+          // +3 range, debuff spreads to nearby (splash 1)
+          { cost: 140, range: 3, splash: 1 },
+          // Slow to 60% (+0.2), adds weakness 20% for 5s
+          { cost: 180, slow: { p: 0.2, d: 0 }, weakness: { amp: 0.2, d: 5 } }
+        ]
+      },
+      rapid: {
+        name: 'Orc Archer Pit',
+        baseCost: 120,
+        base: {
+          damage: 9,
+          range: 7,
+          cooldown: 0.7,
+          splash: 0,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // +5 damage, adds poison 3/s for 3s
+          { cost: 90, damage: 5, dot: { dps: 3, d: 3 } },
+          // -0.2s cooldown, +1 pierce
+          { cost: 120, cooldown: -0.2, pierce: 1 },
+          // +7 damage, adds additional poison 3/s for 3s
+          { cost: 150, damage: 7, dot: { dps: 3, d: 3 } }
+        ]
+      },
+      sniper: {
+        name: 'Fell Beast Perch',
+        baseCost: 200,
+        base: {
+          damage: 120,
+          range: 13,
+          cooldown: 6,
+          splash: 0,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        upgrades: [
+          // +60 damage, fear debuff (50% slow for 2s)
+          { cost: 140, damage: 60, fear: { p: 0.5, d: 2 } },
+          // +4 range, -1s cooldown
+          { cost: 200, range: 4, cooldown: -1 },
+          // +80 damage, adds splash 1 and slow 30% for 3s (screech)
+          { cost: 260, damage: 80, splash: 1, slow: { p: 0.3, d: 3 } }
+        ]
+      }
+      ,
+      // Anti-air tower for Mordor.  Despite the dark arts, Mordor still
+      // requires a way to swat pesky flyers.  Shares stats with other
+      // anti-air towers.
+      antiAir: {
+        name: 'Aerie Guard',
+        baseCost: 130,
+        base: {
+          damage: 15,
+          range: 8,
+          cooldown: 0.8,
+          splash: 0,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0,
+          bonusFlying: 1
+        },
+        upgrades: [
+          { cost: 80, damage: 5 },
+          { cost: 100, range: 2 },
+          { cost: 120, cooldown: -0.1, damage: 10 }
+        ]
+      }
+    }
+    // hero definitions will be added below
+  };
+
+  // Define hero tower data for each faction.
+  // Heroes are powerful units that level up automatically based on kills.
+  // Each hero has a base cost, base stats and upgrades applied when kill thresholds are met.
+  const HERO_DATA = {
+    Gondor: {
+      hero: {
+        name: 'Gondor Hero',
+        baseCost: 250,
+        base: {
+          damage: 80,
+          range: 7,
+          cooldown: 1.0,
+          splash: 0,
+          slow: { p: 0, d: 0 },
+          dot: { dps: 0, d: 0 },
+          pierce: 0,
+          crit: 0,
+          stun: 0,
+          knockback: 0,
+          fear: { p: 0, d: 0 },
+          aura: { dps: 0, range: 0 },
+          weakness: { amp: 0, d: 0 },
+          bonus: 0
+        },
+        // kill thresholds for upgrades
+        thresholds: [10, 30, 60],
+        upgrades: [
+          // Level 2
+          { cost: 0, damage: 20, range: 1, aura: { dps: 3, range: 2 } },
+          // Level 3
+          { cost: 0, cooldown: -0.2, splash: 1 },
+          // Level 4
+          { cost: 0, damage: 30, range: 2, pierce: 1 }
+        ]
+      }
+    },
+    Rohan: {
+      hero
