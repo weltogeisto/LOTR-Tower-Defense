@@ -1,7 +1,6 @@
 /**
- * Assembles plain readable canvas core from js/core/chunk*.js.txt
- * (source-of-truth fragments — not gzip/base64). Also accepts monolithic
- * js/game-core.source.js when present.
+ * Assembles plain readable canvas core from js/core/pXX.js.txt (no gzip/base64).
+ * Prefers monolithic js/game-core.source.js when present.
  */
 (function () {
   function fail(err) {
@@ -22,29 +21,22 @@
     if (play) { play.disabled = false; play.textContent = '🐎 In den Kampf'; }
   }
 
-  function loadChunks() {
-    var paths = [
-      'js/core/chunk0.js.txt',
-      'js/core/chunk1.js.txt',
-      'js/core/chunk2.js.txt'
-    ];
-    return Promise.all(paths.map(function (p) {
-      return fetch(p, { cache: 'no-cache' }).then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + p);
-        return r.text();
-      });
-    })).then(function (parts) { run(parts.join('')); });
+  function get(path) {
+    return fetch(path, { cache: 'no-cache' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + path);
+      return r.text();
+    });
   }
 
-  // Prefer monolithic readable source when available; fall back to chunks.
-  fetch('js/game-core.source.js', { cache: 'no-cache' })
-    .then(function (r) {
-      if (!r.ok) throw new Error('no monolith');
-      return r.text();
-    })
-    .then(run)
-    .catch(function () {
-      return loadChunks();
-    })
-    .catch(fail);
+  function loadParts() {
+    var paths = [];
+    for (var i = 0; i < 12; i++) {
+      paths.push('js/core/p' + String(i).padStart(2, '0') + '.js.txt');
+    }
+    return Promise.all(paths.map(get)).then(function (parts) { run(parts.join('')); });
+  }
+
+  get('js/game-core.source.js').then(run).catch(function () {
+    return loadParts();
+  }).catch(fail);
 })();
