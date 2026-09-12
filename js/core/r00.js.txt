@@ -1,0 +1,153 @@
+/* Reiter der Riddermark TD — SOTA dark cinematic core (fan homage, JGA-OS ready)
+ * Unpacked readable source — night battlefield art direction, not light toy TD.
+ */
+(() => {
+
+  const cvs = document.getElementById('canvas');
+  const ctx = cvs.getContext('2d');
+  const goldEl = document.getElementById('gold');
+  const livesEl = document.getElementById('lives');
+  const waveEl = document.getElementById('wave');
+  const msgEl = document.getElementById('msg');
+  const placeBtn = document.getElementById('placeBtn');
+  const sellBtn = document.getElementById('sellBtn');
+  const factionSel = document.getElementById('faction');
+  const towerSel = document.getElementById('towerType');
+  const mapSel = document.getElementById('map');
+  const pauseOverlay = document.getElementById('pauseOverlay');
+
+  // Grid settings
+  // Increase the overall dimensions of the battlefield to provide more space
+  // for towers and to accommodate longer, more tactical paths.  Doubling
+  // both the columns and rows from the original design gives us a 28×20
+  // arena.  The tile size will auto‑scale based on the container width
+  // so the game still fits nicely on any screen.
+  const COLS = 28;
+  const ROWS = 20;
+  let tile = 40;
+  // The spawn and goal rows are anchored to the vertical midpoint of the
+  // enlarged grid so the central corridor remains symmetric.
+  const spawn = { col: 0, row: Math.floor(ROWS/2) };
+  const goal  = { col: COLS-1, row: Math.floor(ROWS/2) };
+
+  // Base game state
+  let gold = 200;
+  let lives = 20;
+  let wave = 1;
+  let enemyHP = 5;
+  let spawnMs = 2000;
+  let spawnTimer = 0;
+  const WAVE_INTERVAL_MS = 20000;
+  let waveIntervalId = null;
+
+  // Score tracking: current run and persistent high score using localStorage
+  let score = 0;
+  let highScore = (window.JgaTdStorage && JgaTdStorage.loadMeta().bestScore) || parseInt(localStorage.getItem('maulHighScore')) || 0;
+  let ruhmRun = 0;
+  let runStarted = false;
+  let particlesCap = 180;
+  let gamePausedByBridge = false;
+
+  // Statistics tracking
+  let totalEnemiesKilled = 0;
+  let totalTowersBuilt = 0;
+  let gameOver = false;
+
+  // Victory condition: survive to wave 50
+  const VICTORY_WAVE = 50;
+
+  // Audio system using Web Audio API
+  let audioCtx = null;
+  let audioEnabled = true;
+
+  function initAudio() {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch(e) {
+      console.warn('Web Audio API not supported');
+      audioEnabled = false;
+    }
+  }
+
+  function playSound(type) {
+    if(!audioEnabled || !audioCtx) return;
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+
+    switch(type) {
+      case 'shoot':
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(800, now);
+        osc.frequency.exponentialRampToValueAtTime(200, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now);
+        osc.stop(now + 0.1);
+        break;
+      case 'explosion':
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+        break;
+      case 'place':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.setValueAtTime(600, now + 0.05);
+        osc.frequency.setValueAtTime(800, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.15);
+        break;
+      case 'sell':
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(200, now + 0.2);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+        osc.start(now);
+        osc.stop(now + 0.2);
+        break;
+      case 'upgrade':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.setValueAtTime(450, now + 0.1);
+        osc.frequency.setValueAtTime(600, now + 0.2);
+        osc.frequency.setValueAtTime(900, now + 0.3);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+        osc.start(now);
+        osc.stop(now + 0.4);
+        break;
+      case 'enemyDeath':
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.15);
+        break;
+      case 'bossDeath':
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, now);
+        osc.frequency.exponentialRampToValueAtTime(30, now + 0.5);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+        osc.start(now);
+        osc.stop(now + 0.5);
+        break;
+      case 'wave':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.setVa
