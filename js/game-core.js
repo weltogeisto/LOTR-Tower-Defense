@@ -1,6 +1,5 @@
 /**
- * Loads plain readable canvas core (no gzip/base64 pack).
- * Tries: monolith → q0a..q3c → r00..rN → p00..p11
+ * Prefer plain monolith / r00..r20 / q-pieces; fallback: inflate SOTA packed b64 (SoT still plain fragments).
  */
 (function () {
   function fail(err) {
@@ -28,6 +27,12 @@
     });
   }
 
+  function loadRPieces() {
+    var paths = [];
+    for (var i = 0; i < 21; i++) paths.push('js/core/r' + String(i).padStart(2, '0') + '.js.txt');
+    return Promise.all(paths.map(get)).then(function (parts) { run(parts.join('')); });
+  }
+
   function loadQuarterPieces() {
     var paths = [];
     for (var q = 0; q < 4; q++) {
@@ -38,26 +43,25 @@
     return Promise.all(paths.map(get)).then(function (parts) { run(parts.join('')); });
   }
 
-  function loadRPieces() {
+  function inflatePacked() {
+    var n = 5;
     var paths = [];
-    for (var i = 0; i < 21; i++) {
-      paths.push('js/core/r' + String(i).padStart(2, '0') + '.js.txt');
-    }
-    return Promise.all(paths.map(get)).then(function (parts) { run(parts.join('')); });
-  }
-
-  function loadParts() {
-    var paths = [];
-    for (var i = 0; i < 12; i++) {
-      paths.push('js/core/p' + String(i).padStart(2, '0') + '.js.txt');
-    }
-    return Promise.all(paths.map(get)).then(function (parts) { run(parts.join('')); });
+    for (var i = 0; i < n; i++) paths.push('js/packed-sota/b' + String(i).padStart(2, '0') + '.txt');
+    return Promise.all(paths.map(get)).then(function (parts) {
+      var b64 = parts.join('');
+      var bin = atob(b64);
+      var bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      var ds = new DecompressionStream('gzip');
+      var stream = new Blob([bytes]).stream().pipeThrough(ds);
+      return new Response(stream).text().then(run);
+    });
   }
 
   get('js/game-core.source.js')
     .then(run)
-    .catch(function () { return loadQuarterPieces(); })
     .catch(function () { return loadRPieces(); })
-    .catch(function () { return loadParts(); })
+    .catch(function () { return loadQuarterPieces(); })
+    .catch(function () { return inflatePacked(); })
     .catch(fail);
 })();
