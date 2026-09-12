@@ -1,4 +1,4 @@
-/* Reiter der Riddermark — Fellowship OS dark premium shell (SOTA visual pass) */
+/* Reiter der Riddermark — Fellowship OS dark premium shell (dark premium shell) */
 :root {
   --bg: #070b10;
   --bg-elev: #0e1620;
@@ -368,3 +368,127 @@ select:focus, input[type="text"]:focus {
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+
+/* —— Play shell: canvas up, HUD overlays —— */
+header.app-header.compact {
+  padding: 0.45rem 1rem 0.25rem;
+  max-width: 1100px;
+}
+header.app-header.compact h1 { font-size: clamp(1.05rem, 2.4vw, 1.35rem); }
+header.app-header.compact .subtitle { font-size: 0.8rem; margin-top: 0.1rem; }
+
+main.play-shell {
+  max-width: 1100px;
+  gap: 0.45rem;
+  padding-bottom: 1rem;
+}
+
+#game-wrap.stage {
+  position: relative;
+  width: 100%;
+  margin: 0;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--border-gold);
+  box-shadow: var(--shadow);
+  background: #0a1018;
+}
+#game-wrap.stage canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: none;
+}
+
+.hud-overlay {
+  position: absolute;
+  z-index: 5;
+  background: rgba(10, 16, 24, 0.72);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(201, 162, 39, 0.25);
+  border-radius: 0.55rem;
+  padding: 0.4rem 0.55rem;
+  font-size: 0.78rem;
+  gap: 0.35rem 0.55rem;
+  box-shadow: none;
+  width: auto;
+  max-width: min(92%, 420px);
+}
+.hud-top-left { top: 0.45rem; left: 0.45rem; }
+.hud-top-right { top: 0.45rem; right: 0.45rem; text-align: right; }
+.hud-hero { left: 0.45rem; bottom: 2.4rem; }
+.hud-wave { right: 0.45rem; bottom: 0.45rem; font-size: 0.75rem; }
+
+#controls.dock {
+  width: 100%;
+  justify-content: flex-start;
+  gap: 0.45rem;
+  padding: 0.55rem;
+}
+.tile-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  width: 100%;
+}
+.icon-tile {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  min-width: 4.2rem;
+  min-height: var(--touch);
+  padding: 0.35rem 0.45rem;
+  border-radius: 0.55rem;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.72rem;
+}
+.icon-tile[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-soft);
+  background: rgba(201, 162, 39, 0.12);
+}
+.tile-swatch {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 0.25rem;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.tile-label { font-weight: 600; letter-spacing: 0.02em; }
+.tile-cost { color: var(--accent); font-variant-numeric: tabular-nums; }
+.dock-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  width: 100%;
+}
+.speed-row { display: inline-flex; gap: 0.3rem; flex-wrap: wrap; }
+.icon-btn { padding: 0.35rem 0.55rem; min-width: auto; }
+.sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0);
+  white-space: nowrap; border: 0;
+}
+
+#legend, #rotesBuch, #quote, #buildInfo { opacity: 0.85; }
+
+#metaBar.hud-overlay, #hud.hud-overlay {
+  width: auto !important;
+  max-width: 280px;
+  height: auto !important;
+  align-items: center;
+  font-size: 0.72rem;
+  padding: 0.35rem 0.45rem;
+}
+#hud.hud-overlay { justify-content: flex-end; max-width: 300px; }
+.icon-tile { min-width: 3.4rem; padding: 0.25rem 0.35rem; font-size: 0.68rem; min-height: 40px; }
+#controls.dock { padding: 0.4rem; gap: 0.3rem; }
+#legend, #rotesBuch, #quote, #buildInfo { display: none; }
