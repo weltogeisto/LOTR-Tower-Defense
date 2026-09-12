@@ -14,7 +14,7 @@
   const riderIdEl = document.getElementById('riderIdPreview');
   const buildId = document.getElementById('buildId');
 
-  if (buildId) buildId.textContent = 'jga-td-sota-2026-09';
+  if (buildId) buildId.textContent = 'jga-td-sota-2026-09-fix';
 
   function refreshMetaHud() {
     if (!window.JgaTdStorage) return;
@@ -63,17 +63,33 @@
   }
 
   function persistIdentity() {
-    const meta = JgaTdStorage.loadMeta();
-    meta.siegelrune = (siegelInput.value || '').trim().slice(0, 24);
-    meta.gefaehrte = (nameInput.value || '').trim().slice(0, 32);
-    meta.riderFlavour = riderPick ? riderPick.value : 'jan-banner';
-    meta.riderId = updateRiderPreview();
-    // Soft Jan flavour note
+    const runeRaw = (siegelInput && siegelInput.value) || '';
+    const name = (nameInput && nameInput.value) || '';
+    const flavour = riderPick ? riderPick.value : 'jan-banner';
+    // Activate real localStorage save slot keyed by Siegelrune
+    let meta;
+    if (typeof JgaTdStorage.selectSiegel === 'function') {
+      meta = JgaTdStorage.selectSiegel(runeRaw, {
+        gefaehrte: name.trim().slice(0, 32),
+        riderFlavour: flavour
+      });
+    } else {
+      meta = JgaTdStorage.loadMeta();
+      meta.siegelrune = runeRaw.trim().slice(0, 24);
+      meta.gefaehrte = name.trim().slice(0, 32);
+      meta.riderFlavour = flavour;
+    }
+    meta.gefaehrte = (meta.gefaehrte || '').trim().slice(0, 32);
+    meta.riderFlavour = flavour;
+    meta.riderId = JgaTdStorage.makeRiderId(meta.siegelrune || runeRaw, meta.gefaehrte || name);
     if (!meta.gefaehrte && meta.riderFlavour === 'jan-banner') {
       meta.gefaehrte = 'Bannerträger für Jan';
+      meta.riderId = JgaTdStorage.makeRiderId(meta.siegelrune || runeRaw, meta.gefaehrte);
     }
     JgaTdStorage.saveMeta(meta);
+    if (riderIdEl) riderIdEl.textContent = meta.riderId;
     refreshMetaHud();
+    return meta;
   }
 
   function beginPlay() {
@@ -122,7 +138,19 @@
     closeSettings();
   }
 
-  if (siegelInput) siegelInput.addEventListener('input', updateRiderPreview);
+  if (siegelInput) {
+    siegelInput.addEventListener('input', updateRiderPreview);
+    siegelInput.addEventListener('change', () => {
+      const rune = (siegelInput.value || '').trim();
+      if (!window.JgaTdStorage) return;
+      // Switch to this Siegelrune save slot (creates empty slot if new)
+      const meta = JgaTdStorage.selectSiegel(rune);
+      if (nameInput) nameInput.value = meta.gefaehrte || '';
+      if (riderPick && meta.riderFlavour) riderPick.value = meta.riderFlavour;
+      updateRiderPreview();
+      refreshMetaHud();
+    });
+  }
   if (nameInput) nameInput.addEventListener('input', updateRiderPreview);
   if (playBtn) playBtn.addEventListener('click', beginPlay);
   if (openSettingsBtn) openSettingsBtn.addEventListener('click', openSettings);
