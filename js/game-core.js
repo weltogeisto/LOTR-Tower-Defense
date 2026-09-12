@@ -1,5 +1,6 @@
 /**
- * Prefer plain monolith / r00..r20 / q-pieces; fallback: inflate SOTA packed b64 (SoT still plain fragments).
+ * Load order: plain monolith → r00..r20 → p00..p11 → inflate packed-sota (gzip b64 fallback).
+ * Uncompressed fragments are the visual SoT; packed-sota must match that SoT.
  */
 (function () {
   function fail(err) {
@@ -27,18 +28,10 @@
     });
   }
 
-  function loadRPieces() {
+  function loadJoined(prefix, count, pad, ext) {
     var paths = [];
-    for (var i = 0; i < 21; i++) paths.push('js/core/r' + String(i).padStart(2, '0') + '.js.txt');
-    return Promise.all(paths.map(get)).then(function (parts) { run(parts.join('')); });
-  }
-
-  function loadQuarterPieces() {
-    var paths = [];
-    for (var q = 0; q < 4; q++) {
-      for (var j = 0; j < 3; j++) {
-        paths.push('js/game-core.source.q' + q + String.fromCharCode(97 + j) + '.js');
-      }
+    for (var i = 0; i < count; i++) {
+      paths.push(prefix + String(i).padStart(pad, '0') + ext);
     }
     return Promise.all(paths.map(get)).then(function (parts) { run(parts.join('')); });
   }
@@ -60,8 +53,8 @@
 
   get('js/game-core.source.js')
     .then(run)
-    .catch(function () { return loadRPieces(); })
-    .catch(function () { return loadQuarterPieces(); })
+    .catch(function () { return loadJoined('js/core/r', 21, 2, '.js.txt'); })
+    .catch(function () { return loadJoined('js/core/p', 12, 2, '.js.txt'); })
     .catch(function () { return inflatePacked(); })
     .catch(fail);
 })();
