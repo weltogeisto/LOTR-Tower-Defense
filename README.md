@@ -7,12 +7,13 @@ Thematisch verwandt mit [Fellowship OS](https://github.com/weltogeisto/jga-fello
 
 ## Visual pass (SOTA dark battlefield)
 
-Canvas + shell were redesigned end-to-end for a **dark cinematic Mark night**:
-- Unpacked readable `js/game-core.js` (no gzip/base64 pack required)
-- Night parchment terrain, torchlit path glow, glowing Tor/Feste beacons
+Canvas + shell redesigned end-to-end for a **dark cinematic Mark night**:
+- Night parchment / grass terrain, torchlit path glow, glowing Tor/Feste beacons
 - Faction-coloured tower silhouettes, hit flashes, floating damage numbers
-- Premium dark shell (typography, overlays, build bar) matching Fellowship OS
+- Premium dark shell (start overlay, settings, Rotes Buch, build bar) matching Fellowship OS
+- Old light toy palette (`#eef3f8`, white canvas) is gone from gameplay chrome
 
+**How the core loads:** `js/game-core.js` is a small loader. It prefers plain uncompressed fragments (`js/core/r00…r20.js.txt`, then `p00…p11.js.txt`), then inflates `js/packed-sota/b00…b04.txt` (gzip+b64 of the **same** dark canvas SoT). The old light `js/packed/part*.js` pack is removed.
 
 ## Vorher / Nachher
 
@@ -56,14 +57,16 @@ Oder Ordner einfach über GitHub Pages deployen (Workflow unter `.github/workflo
 ## Struktur
 
 ```
-index.html          # Shell + DE-UI + Overlays (premium dark)
-css/theme.css       # Fellowship-OS dark premium theme
-js/storage.js       # Ruhm, Ränge, Siegelrune, Settings, Rotes Buch
-js/bridge.js        # Embed-Bridge + postMessage-Protokoll
-js/horn.js          # Horn-Juice (WebAudio)
-js/game-core.js     # Readable canvas core (SOTA dark art direction)
-js/game.js          # Ready-event shim (no gzip pack)
-js/boot.js          # Startbildschirm / Settings-Wiring
+index.html              # Shell + DE-UI + Overlays (premium dark)
+css/theme.css           # Fellowship-OS dark premium theme
+js/storage.js           # Ruhm, Ränge, Siegelrune, Settings, Rotes Buch
+js/bridge.js            # Embed-Bridge + postMessage-Protokoll
+js/horn.js              # Horn-Juice (WebAudio)
+js/game-core.js         # Loader: plain r/p fragments → packed-sota inflate
+js/core/r*.js.txt       # Readable dark canvas SoT fragments
+js/packed-sota/b*.txt   # gzip+b64 of the same dark core (fallback)
+js/game.js              # Ready-event shim
+js/boot.js              # Startbildschirm / Settings-Wiring
 ```
 
 ## Embed in Fellowship OS (iframe)
