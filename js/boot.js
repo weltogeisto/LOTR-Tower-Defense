@@ -14,7 +14,7 @@
   const riderIdEl = document.getElementById('riderIdPreview');
   const buildId = document.getElementById('buildId');
 
-  if (buildId) buildId.textContent = 'jga-td-sota-visual-2026-09';
+  if (buildId) buildId.textContent = 'jga-td-visual-2026-09';
 
   function refreshMetaHud() {
     if (!window.JgaTdStorage) return;
@@ -66,7 +66,6 @@
     const runeRaw = (siegelInput && siegelInput.value) || '';
     const name = (nameInput && nameInput.value) || '';
     const flavour = riderPick ? riderPick.value : 'jan-banner';
-    // Activate real localStorage save slot keyed by Siegelrune
     let meta;
     if (typeof JgaTdStorage.selectSiegel === 'function') {
       meta = JgaTdStorage.selectSiegel(runeRaw, {
@@ -143,7 +142,6 @@
     siegelInput.addEventListener('change', () => {
       const rune = (siegelInput.value || '').trim();
       if (!window.JgaTdStorage) return;
-      // Switch to this Siegelrune save slot (creates empty slot if new)
       const meta = JgaTdStorage.selectSiegel(rune);
       if (nameInput) nameInput.value = meta.gefaehrte || '';
       if (riderPick && meta.riderFlavour) riderPick.value = meta.riderFlavour;
@@ -159,7 +157,6 @@
   if (closeSettingsBtn) closeSettingsBtn.addEventListener('click', closeSettings);
   if (saveSettingsBtn) saveSettingsBtn.addEventListener('click', saveSettings);
 
-  // Default faction Rohan for Riddermark vibe
   const faction = document.getElementById('faction');
   if (faction) {
     const meta = JgaTdStorage.loadMeta();
@@ -170,7 +167,6 @@
   syncFormFromStorage();
   refreshMetaHud();
 
-  // Keep start overlay visible on load
   if (startOverlay) {
     startOverlay.classList.add('active');
     startOverlay.setAttribute('aria-hidden', 'false');
