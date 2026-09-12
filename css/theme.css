@@ -1,0 +1,312 @@
+/* Reiter der Riddermark — dark Fellowship-OS family theme (fan homage) */
+:root {
+  --bg: #0b0f14;
+  --bg-elev: #121820;
+  --panel: #161d27;
+  --panel-2: #1c2533;
+  --border: #2a3648;
+  --accent: #c9a227;
+  --accent-2: #8b6914;
+  --text: #e8edf5;
+  --muted: #93a0b4;
+  --tower: #d4a017;
+  --enemy: #c23b3b;
+  --bullet: #3d9b8f;
+  --spawn: #4a7c9b;
+  --goal: #2f6f8f;
+  --obstacle: #243041;
+  --good: #3ecf8e;
+  --bad: #ef5a5a;
+  --mithril: #b8c5d6;
+  --horn: #e8c547;
+  --shadow: 0 8px 32px rgba(0,0,0,.55);
+  --radius: .75rem;
+  --font: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --touch: 44px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font);
+  background:
+    radial-gradient(1200px 600px at 50% -10%, #1a2433 0%, transparent 60%),
+    linear-gradient(180deg, #0b0f14 0%, #0e141c 100%);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  line-height: 1.4;
+}
+
+body.reduced-motion *,
+body.reduced-motion *::before,
+body.reduced-motion *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+header.app-header {
+  padding: 1rem 1rem .5rem;
+  text-align: center;
+  width: 100%;
+  max-width: 980px;
+}
+header.app-header h1 {
+  font-size: clamp(1.25rem, 3.5vw, 1.85rem);
+  letter-spacing: .04em;
+  color: var(--accent);
+  text-shadow: 0 0 24px rgba(201,162,39,.25);
+}
+header.app-header .subtitle {
+  color: var(--muted);
+  font-size: .95rem;
+  margin-top: .25rem;
+}
+
+main {
+  width: 100%;
+  max-width: 980px;
+  padding: 0 1rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+  align-items: center;
+}
+
+#metaBar, #hud {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: .5rem .75rem;
+  width: 100%;
+  font-size: .95rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .65rem .85rem;
+  box-shadow: var(--shadow);
+}
+
+#metaBar span, #hud > div {
+  white-space: nowrap;
+}
+#metaBar .accent, #hud .accent { color: var(--accent); font-weight: 600; }
+#metaBar .mithril { color: var(--mithril); }
+
+#controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+  width: 100%;
+  justify-content: center;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .65rem;
+}
+
+label { color: var(--muted); font-size: .9rem; }
+select, button, input[type="text"], input[type="range"] {
+  font-size: 1rem;
+  font-family: inherit;
+}
+select, input[type="text"] {
+  background: var(--bg-elev);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: .55rem;
+  padding: .55rem .7rem;
+  min-height: var(--touch);
+}
+
+.btn {
+  background: linear-gradient(180deg, #d4af37, #a8841c);
+  color: #1a1408;
+  border: 1px solid #6e5610;
+  border-radius: .6rem;
+  padding: .65rem 1rem;
+  cursor: pointer;
+  min-height: var(--touch);
+  min-width: var(--touch);
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.btn:hover { filter: brightness(1.08); }
+.btn:active { transform: translateY(1px); }
+.btn.gray {
+  background: linear-gradient(180deg, #3a4658, #2a3444);
+  color: var(--text);
+  border-color: #1a2230;
+  font-weight: 600;
+}
+.btn.ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent-2);
+}
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px var(--accent), inset 0 0 12px rgba(201,162,39,.25);
+}
+
+#game-wrap {
+  width: 100%;
+  border: 2px solid var(--accent-2);
+  background: var(--panel);
+  border-radius: var(--radius);
+  overflow: hidden;
+  position: relative;
+  box-shadow: var(--shadow);
+}
+#canvas {
+  width: 100%;
+  display: block;
+  background: #0e1620;
+  touch-action: none;
+}
+
+#legend {
+  font-size: .9rem;
+  color: var(--muted);
+  text-align: center;
+  max-width: 52rem;
+}
+#msg {
+  min-height: 1.35rem;
+  color: var(--horn);
+  text-align: center;
+  font-weight: 600;
+  transition: opacity .4s ease;
+}
+#quote {
+  font-style: italic;
+  color: var(--accent);
+  text-align: right;
+  width: 100%;
+  margin-top: .25rem;
+  opacity: .9;
+}
+#buildInfo { font-size: .75rem; color: var(--muted); opacity: .7; }
+#heroInfo { font-size: .9rem; color: var(--accent); text-align: center; min-height: 1.2rem; }
+#factionIcon { font-size: 1.4rem; }
+
+#wavePreview {
+  position: absolute;
+  top: .5rem;
+  left: .5rem;
+  background: rgba(11,15,20,.82);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: .35rem .6rem;
+  border-radius: .5rem;
+  font-size: .85rem;
+  pointer-events: none;
+  z-index: 2;
+}
+
+#rotesBuch {
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .65rem .85rem;
+  max-height: 9rem;
+  overflow: auto;
+}
+#rotesBuch h3 {
+  font-size: .95rem;
+  color: var(--accent);
+  margin-bottom: .35rem;
+}
+#rotesBuch ul { list-style: none; font-size: .85rem; color: var(--muted); }
+#rotesBuch li { padding: .15rem 0; border-bottom: 1px solid rgba(42,54,72,.5); }
+#rotesBuch li:last-child { border-bottom: none; }
+
+/* Overlays */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5,8,12,.88);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+  backdrop-filter: blur(6px);
+}
+.overlay.active { display: flex; }
+.overlay-card {
+  background: linear-gradient(160deg, #1a2330, #121820);
+  border: 1px solid var(--accent-2);
+  border-radius: 1rem;
+  padding: 1.5rem 1.25rem;
+  max-width: 440px;
+  width: 100%;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.overlay-card h2 {
+  color: var(--accent);
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  margin-bottom: .75rem;
+}
+.overlay-card p, .overlay-card .stats {
+  color: var(--muted);
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+.overlay-card .stats span { color: var(--accent); font-weight: 700; }
+.overlay-card .form-row {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  text-align: left;
+  margin-bottom: .85rem;
+}
+.overlay-card .form-row label { color: var(--text); font-weight: 600; }
+.overlay-card .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  text-align: left;
+  padding: .4rem 0;
+  border-bottom: 1px solid rgba(42,54,72,.45);
+}
+.setting-row:last-child { border-bottom: none; }
+
+#pauseOverlay h2 { font-size: 2rem; color: var(--mithril); }
+#gameOverOverlay h2 { color: var(--bad); text-shadow: 0 0 20px rgba(239,90,90,.35); }
+#victoryOverlay h2 { color: var(--good); text-shadow: 0 0 20px rgba(62,207,142,.35); }
+
+#hornFlash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at center, rgba(232,197,71,.28), transparent 55%);
+  opacity: 0;
+  z-index: 90;
+  transition: opacity .15s ease;
+}
+#hornFlash.blast { opacity: 1; }
+
+@media (max-width: 640px) {
+  #controls { justify-content: stretch; }
+  #controls .btn, #controls select { flex: 1 1 auto; }
+  #hud, #metaBar { font-size: .85rem; }
+  header.app-header h1 { font-size: 1.2rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
