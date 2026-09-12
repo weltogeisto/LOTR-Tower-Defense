@@ -1,0 +1,160 @@
+/* —— Play shell: canvas up, HUD overlays —— */
+header.app-header.compact {
+  padding: 0.45rem 1rem 0.25rem;
+  max-width: 1100px;
+}
+header.app-header.compact h1 { font-size: clamp(1.05rem, 2.4vw, 1.35rem); }
+header.app-header.compact .subtitle { font-size: 0.8rem; margin-top: 0.1rem; }
+
+main.play-shell {
+  max-width: 1100px;
+  gap: 0.45rem;
+  padding-bottom: 1rem;
+}
+
+#game-wrap.stage {
+  position: relative;
+  width: 100%;
+  margin: 0;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--border-gold);
+  box-shadow: var(--shadow);
+  background: #0a1018;
+}
+#game-wrap.stage canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: none;
+}
+
+.hud-overlay {
+  position: absolute;
+  z-index: 5;
+  background: rgba(10, 16, 24, 0.78);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(201, 162, 39, 0.28);
+  border-radius: 0.55rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.74rem;
+  gap: 0.25rem 0.45rem;
+  box-shadow: none;
+  width: auto !important;
+  max-width: min(46vw, 260px);
+  height: auto !important;
+  align-content: flex-start;
+}
+.hud-top-left { top: 0.4rem; left: 0.4rem; }
+.hud-top-right { top: 0.4rem; right: 0.4rem; text-align: right; }
+.hud-hero { left: 0.4rem; bottom: 0.45rem; max-width: min(50vw, 220px); }
+.hud-wave { right: 0.4rem; bottom: 0.45rem; font-size: 0.72rem; max-width: min(46vw, 220px); }
+
+#controls.dock {
+  width: 100%;
+  justify-content: flex-start;
+  gap: 0.45rem;
+  padding: 0.55rem;
+}
+.tile-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.15rem;
+  scrollbar-width: thin;
+}
+.icon-tile {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  flex: 0 0 auto;
+  min-width: 4.6rem;
+  min-height: 3.35rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 0.6rem;
+  border: 1px solid #3a4658;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.04), transparent 45%),
+    #121a24;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.74rem;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.icon-tile[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft), inset 0 0 12px rgba(201,162,39,0.12);
+  background:
+    linear-gradient(180deg, rgba(201,162,39,0.18), rgba(201,162,39,0.06));
+}
+.tile-swatch {
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: #0a1018;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(201,162,39,0.08);
+}
+.tile-swatch svg { width: 1.25rem; height: 1.25rem; display: block; }
+.tile-label {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #e8edf5;
+  line-height: 1.1;
+  max-width: 5.2rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tile-cost {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 0.7rem;
+}
+.dock-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  width: 100%;
+}
+.speed-row { display: inline-flex; gap: 0.3rem; flex-wrap: wrap; }
+.icon-btn { padding: 0.35rem 0.55rem; min-width: auto; }
+.sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0);
+  white-space: nowrap; border: 0;
+}
+
+#legend, #rotesBuch, #quote, #buildInfo { opacity: 0.85; }
+
+#metaBar.hud-overlay, #hud.hud-overlay {
+  width: auto !important;
+  max-width: 280px;
+  height: auto !important;
+  align-items: center;
+  font-size: 0.72rem;
+  padding: 0.35rem 0.45rem;
+}
+#hud.hud-overlay { justify-content: flex-end; max-width: 300px; }
+.icon-tile { min-width: 4.4rem; padding: 0.35rem 0.4rem; font-size: 0.7rem; min-height: 3.2rem; }
+#controls.dock { padding: 0.45rem; gap: 0.35rem; }
+#legend, #rotesBuch, #quote, #buildInfo { display: none; }
+
+@media (max-width: 520px) {
+  .icon-tile { min-width: 4.1rem; min-height: 3.1rem; font-size: 0.66rem; }
+  .tile-swatch { width: 1.7rem; height: 1.7rem; }
+  .tile-swatch svg { width: 1.15rem; height: 1.15rem; }
+  .tile-label { max-width: 4.4rem; }
+}
