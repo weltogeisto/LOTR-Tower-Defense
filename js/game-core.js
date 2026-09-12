@@ -1,6 +1,6 @@
 /**
  * Loads plain readable canvas core (no gzip/base64 pack).
- * Tries: monolith source → 4 quarters → 12 pXX fragments.
+ * Tries: monolith → q0a..q3c pieces → p00..p11 fragments.
  */
 (function () {
   function fail(err) {
@@ -28,10 +28,14 @@
     });
   }
 
-  function loadQuarters() {
-    return Promise.all([0,1,2,3].map(function (i) {
-      return get('js/game-core.source.q' + i + '.js');
-    })).then(function (parts) { run(parts.join('')); });
+  function loadQuarterPieces() {
+    var paths = [];
+    for (var q = 0; q < 4; q++) {
+      for (var j = 0; j < 3; j++) {
+        paths.push('js/game-core.source.q' + q + String.fromCharCode(97 + j) + '.js');
+      }
+    }
+    return Promise.all(paths.map(get)).then(function (parts) { run(parts.join('')); });
   }
 
   function loadParts() {
@@ -44,7 +48,7 @@
 
   get('js/game-core.source.js')
     .then(run)
-    .catch(function () { return loadQuarters(); })
+    .catch(function () { return loadQuarterPieces(); })
     .catch(function () { return loadParts(); })
     .catch(fail);
 })();

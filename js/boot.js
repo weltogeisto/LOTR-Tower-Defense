@@ -14,7 +14,7 @@
   const riderIdEl = document.getElementById('riderIdPreview');
   const buildId = document.getElementById('buildId');
 
-  if (buildId) buildId.textContent = 'jga-td-sota-2026-09-fix';
+  if (buildId) buildId.textContent = 'jga-td-sota-visual-2026-09';
 
   function refreshMetaHud() {
     if (!window.JgaTdStorage) return;
