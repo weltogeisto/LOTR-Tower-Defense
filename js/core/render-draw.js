@@ -1,3 +1,27 @@
+function drawUnitHalo(x, y, r, accent){
+  const g = ctx.createRadialGradient(x, y, r * 0.2, x, y, r * 1.25);
+  g.addColorStop(0, 'rgba(235,240,250,0.28)');
+  g.addColorStop(0.45, hexAlpha(accent || '#c9a227', 0.28));
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, r * 1.25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = accent || '#c9a227';
+  ctx.globalAlpha = 0.7;
+  ctx.lineWidth = Math.max(2, tile * 0.055);
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.78, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+function hexAlpha(hex, a){
+  const h = (hex || '#c9a227').replace('#','');
+  if(h.length !== 6) return `rgba(201,162,39,${a})`;
+  const r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
 function draw(){
   const W = cssW || (tile * COLS);
   const H = cssH || (tile * ROWS);
@@ -17,7 +41,6 @@ function draw(){
     ctx.drawImage(groundLayer, 0, 0, W, H);
   }
 
-  // landmarks
   if(window.JgaArt){
     JgaArt.ensure(tile, viewDpr);
     JgaArt.drawTor(ctx, spawn.col * tile + tile / 2, spawn.row * tile + tile / 2, tile);
@@ -30,12 +53,15 @@ function draw(){
     }
   }
 
-  // soft build-mode cell under cursor only
   if(ghost.active && placing){
     const x = ghost.col * tile, y = ghost.row * tile;
-    ctx.fillStyle = ghost.valid ? 'rgba(62,207,142,0.22)' : 'rgba(239,90,90,0.22)';
-    roundRect(ctx, x + 3, y + 3, tile - 6, tile - 6, 6);
+    ctx.fillStyle = ghost.valid ? 'rgba(62,207,142,0.32)' : 'rgba(239,90,90,0.32)';
+    roundRect(ctx, x + 2, y + 2, tile - 4, tile - 4, 7);
     ctx.fill();
+    ctx.strokeStyle = ghost.valid ? 'rgba(120,240,180,0.85)' : 'rgba(255,140,140,0.85)';
+    ctx.lineWidth = 2;
+    roundRect(ctx, x + 2, y + 2, tile - 4, tile - 4, 7);
+    ctx.stroke();
   }
 
   if(ghost.active){
@@ -65,6 +91,7 @@ function draw(){
   towers.forEach(t => {
     const cx = t.col * tile + tile / 2;
     const cy = t.row * tile + tile / 2;
+    drawUnitHalo(cx, cy, tile * 0.42, FACTION_COLORS[t.faction] || '#c9a227');
     if(window.JgaArt){
       JgaArt.drawTower(ctx, t.isHero ? 'hero' : t.type, t.faction, cx, cy, tile);
     }
@@ -87,6 +114,7 @@ function draw(){
 
   enemies.forEach(e => {
     const kind = e.isBoss ? 'boss' : (e.isFlying ? 'flyer' : 'grunt');
+    drawUnitHalo(e.x, e.y, tile * (e.isBoss ? 0.5 : 0.36), '#d04545');
     if(window.JgaArt) JgaArt.drawEnemy(ctx, kind, e.x, e.y, tile);
     if(e._flash && e._flash > 0){
       ctx.save();
