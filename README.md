@@ -52,8 +52,8 @@ css/theme.css       # Dunkles Fellowship-Familien-Theme
 js/storage.js       # Ruhm, Ränge, Siegelrune, Settings, Rotes Buch
 js/bridge.js        # Embed-Bridge + postMessage-Protokoll
 js/horn.js          # Horn-Juice (WebAudio)
-js/game-core.js     # Lesbarer Canvas-Spielkern (uncompressed)
-js/game.js          # Ready-Shim nach game-core
+js/game.js          # DecompressionStream inflate (valid gzip CRC)
+js/packed/          # gzip+base64 canvas core (repacked; mute+slots fixes)
 js/boot.js          # Startbildschirm / Settings-Wiring
 ```
 
