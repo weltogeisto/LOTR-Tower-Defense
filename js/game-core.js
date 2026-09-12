@@ -1,6 +1,6 @@
 /**
  * Loads plain readable canvas core (no gzip/base64 pack).
- * Tries: monolith → q0a..q3c pieces → p00..p11 fragments.
+ * Tries: monolith → q0a..q3c → r00..rN → p00..p11
  */
 (function () {
   function fail(err) {
@@ -38,6 +38,14 @@
     return Promise.all(paths.map(get)).then(function (parts) { run(parts.join('')); });
   }
 
+  function loadRPieces() {
+    var paths = [];
+    for (var i = 0; i < 21; i++) {
+      paths.push('js/core/r' + String(i).padStart(2, '0') + '.js.txt');
+    }
+    return Promise.all(paths.map(get)).then(function (parts) { run(parts.join('')); });
+  }
+
   function loadParts() {
     var paths = [];
     for (var i = 0; i < 12; i++) {
@@ -49,6 +57,7 @@
   get('js/game-core.source.js')
     .then(run)
     .catch(function () { return loadQuarterPieces(); })
+    .catch(function () { return loadRPieces(); })
     .catch(function () { return loadParts(); })
     .catch(fail);
 })();
